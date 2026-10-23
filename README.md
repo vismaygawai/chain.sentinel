@@ -28,8 +28,8 @@ Chain Sentinel introduces an autonomous, preventive defense layer:
 - Team: WWHS?
 - Hackathon: ELECTROTHON 8.0
 - Live Website: https://chain-sentinel-web.vercel.app/
-- Live Backend API: https://chain-sentinel-lt6e.onrender.com/
-- WebSocket Feed: wss://chain-sentinel-lt6e.onrender.com/ws/feed
+- Live Backend API: https://chain-sentinel.onrender.com/
+- WebSocket Feed: wss://chain-sentinel.onrender.com/ws/feed
 - Devfolio Submission: https://devfolio.co/projects/chain-sentinel-f7cf
 - Repository: https://github.com/vismaygawai/chain.sentinel
 
