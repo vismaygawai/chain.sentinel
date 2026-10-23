@@ -2,6 +2,8 @@
 
 > Autonomous multi-agent on-chain defensive layer for DeFi treasuries and wallets.
 > Built by WWHS? for ELECTROTHON 8.0.
+> Live Website: https://chain-sentinel-web.vercel.app/
+> Live API & WebSockets: https://chain-sentinel-lt6e.onrender.com/
 > Devfolio Project Link: https://devfolio.co/projects/chain-sentinel-f7cf
 
 ---
@@ -25,6 +27,9 @@ Chain Sentinel introduces an autonomous, preventive defense layer:
 - Project: Chain Sentinel
 - Team: WWHS?
 - Hackathon: ELECTROTHON 8.0
+- Live Website: https://chain-sentinel-web.vercel.app/
+- Live Backend API: https://chain-sentinel-lt6e.onrender.com/
+- WebSocket Feed: wss://chain-sentinel-lt6e.onrender.com/ws/feed
 - Devfolio Submission: https://devfolio.co/projects/chain-sentinel-f7cf
 - Repository: https://github.com/vismaygawai/chain.sentinel
 
@@ -71,8 +76,7 @@ ChainSentinel/
 │   ├── build-all.ts                  # Unified monorepo build runner
 │   ├── deploy-atp.ts                 # ATP registration & tokenization script
 │   ├── seed-demo-data.ts             # Test wallets & high-exposure demo seeder
-│   └── check-node.js                 # Node >= 20 environment validator
-├── bin/                              # Archived legacy components & temporary artifacts
+│   └── check-node.js                 # Node environment validator
 ├── .env.example                      # Consolidated environment configuration template
 ├── package.json                      # Workspace root scripts & pnpm engines
 ├── pnpm-workspace.yaml               # Monorepo workspace boundaries
@@ -84,8 +88,13 @@ ChainSentinel/
 
 ## 4. Quickstart Guide
 
+### 4.0 Live Deployments
+- Production Web Dashboard: https://chain-sentinel-web.vercel.app/
+- Fastify Live API Service: https://chain-sentinel-lt6e.onrender.com/
+- WebSocket Event Stream: wss://chain-sentinel-lt6e.onrender.com/ws/feed
+
 ### 4.1 Prerequisites
-- Node.js: >= 20.0.0
+- Node.js: 20.x
 - pnpm: >= 9.0.0
 
 ### 4.2 Installation
@@ -164,4 +173,5 @@ The frontend adheres strictly to a Neo-Brutalist aesthetic:
 
 Chain Sentinel is open-source software under the MIT License.
 Built for ELECTROTHON 8.0 by WWHS?
+Live Website: https://chain-sentinel-web.vercel.app/
 Devfolio Link: https://devfolio.co/projects/chain-sentinel-f7cf
