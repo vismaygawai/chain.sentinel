@@ -23,13 +23,18 @@ export default function DashboardPage() {
   const [watchedPositions, setWatchedPositions] = useState<LiquidShieldPosition[]>([]);
   const [streamFilter, setStreamFilter] = useState<"ALL" | "POSITIONS" | "WALLETS">("ALL");
   
-  const { scan, result, loading, error, step } = useRiskScan();
+  const { scan, reset, result, loading, error, step } = useRiskScan();
   const { alerts, isConnected } = useLiveFeed();
 
   // Load user's registered surveillance workflows on mount (does NOT auto-scan)
   useEffect(() => {
     void fetchMonitored();
   }, []);
+
+  const handleClear = () => {
+    setAddressInput("");
+    reset();
+  };
 
   const fetchMonitored = async () => {
     try {
@@ -117,13 +122,13 @@ export default function DashboardPage() {
             >
               Aave Whale (0x577d...62c3)
             </button>
-            {addressInput && (
+            {(addressInput || result) && (
               <button
                 type="button"
-                onClick={() => setAddressInput("")}
-                className="border border-gray-400 px-2 py-1 font-mono text-[11px] text-gray-600 hover:text-black hover:border-black bg-white shadow-hard-sm"
+                onClick={handleClear}
+                className="border-2 border-black px-3 py-1 font-mono text-[11px] font-bold text-black hover:bg-black hover:text-white bg-white shadow-hard-sm transition-all"
               >
-                Clear ✕
+                Reset Grid ✕
               </button>
             )}
           </div>
@@ -152,10 +157,25 @@ export default function DashboardPage() {
               <input
                 type="text"
                 value={addressInput}
-                onChange={(e) => setAddressInput(e.target.value)}
+                onChange={(e) => {
+                  setAddressInput(e.target.value);
+                  if (!e.target.value.trim() && result) {
+                    reset();
+                  }
+                }}
                 placeholder="Enter EVM Treasury, Multisig, or Wallet Address (0x...)"
-                className="w-full h-14 border-2 border-black px-5 font-mono text-sm bg-white text-black shadow-hard focus:outline-none focus:ring-2 focus:ring-electric"
+                className="w-full h-14 border-2 border-black px-5 pr-12 font-mono text-sm bg-white text-black shadow-hard focus:outline-none focus:ring-2 focus:ring-electric"
               />
+              {(addressInput || result) && (
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  title="Clear input and reset grid"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-7 h-7 border border-black bg-[#f4f4f4] hover:bg-black hover:text-white flex items-center justify-center font-mono font-bold text-xs transition-colors shadow-hard-sm"
+                >
+                  ✕
+                </button>
+              )}
             </div>
             <button
               type="submit"
