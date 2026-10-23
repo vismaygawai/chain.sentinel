@@ -4,7 +4,6 @@
   "description": "Chain Sentinel Web Dashboard",
   "private": true,
   "scripts": {
-    "preinstall": "npm config set fetch-retries 5 && npm config set fetch-retry-maxtimeout 120000 && npm config set fetch-retry-mintimeout 20000",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -16,7 +15,7 @@
     "react-dom": "18.3.1"
   },
   "devDependencies": {
-    "@types/node": "^20.12.12",
+    "@types/node": "^22.10.1",
     "@types/react": "18.3.1",
     "@types/react-dom": "18.3.1",
     "autoprefixer": "^10.4.22",
@@ -28,6 +27,6 @@
     "typescript": "5.9.3"
   },
   "engines": {
-    "node": "20.x"
+    "node": ">=20"
   }
 }
