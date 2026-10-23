@@ -1,8 +1,0 @@
-services:
-  - type: web
-    name: Chain Sentinel API
-    buildCommand: pnpm install
-    startCommand: pnpm start
-    envVars:
-      - key: NODE_ENV
-        value: production

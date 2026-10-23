@@ -116,7 +116,7 @@ OUTPUT ONLY THIS JSON:
     };
   }
 
-  if (risk.level === "LOW") {
+  if ((risk.level === "LOW" || risk.tier === "SAFE")) {
     console.log("✅ Governance decision from deterministic rule (LOW risk)");
     return {
       approved: true,

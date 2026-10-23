@@ -2,7 +2,7 @@ export type IntentClassification =
   | 'CEX_DEPOSIT'
   | 'ACCUMULATION'
   | 'DISTRIBUTION'
-  | 'UNKNOWN'
+  | 'UNKNOWN';
 
 export interface WhaleScanResult {
   address: string;
@@ -14,15 +14,7 @@ export interface WhaleScanResult {
   intent?: IntentClassification;
 }
 
-export interface WalletInfo {
-  address: string;
-  label: string | null;
-  intent: IntentClassification;
-  lastAlertTime?: number | null;
-  historyCount?: number;
-}
-
-export type RiskTier = 'SAFE' | 'WARNING' | 'DANGER' | 'CRITICAL'
+export type RiskTier = 'SAFE' | 'WARNING' | 'DANGER' | 'CRITICAL';
 
 export interface PositionSnapshot {
   walletAddress: string;
@@ -33,13 +25,31 @@ export interface PositionSnapshot {
   timestamp?: number;
 }
 
+export interface WalletInfo {
+  address: string;
+  label?: string | null;
+  intent?: IntentClassification;
+  lastAlertTime?: number | null;
+  historyCount?: number;
+  type?: string;
+  ww?: {
+    active: boolean;
+    lastAlert?: WhaleScanResult;
+  };
+  ls?: {
+    active: boolean;
+    lastSnapshot?: PositionSnapshot[];
+  };
+}
+
 export interface LiquidShieldPosition {
   address: string;
   label?: string | null;
+  protocol?: string;
   snapshots: PositionSnapshot[];
 }
 
-export type UrgencyLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+export type UrgencyLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export interface CompoundAlert {
   walletAddress: string;
@@ -61,35 +71,40 @@ export interface Snapshot {
   positions: SnapshotPosition[];
 }
 
-export interface Risk {
-  level: "LOW" | "MEDIUM" | "HIGH" | string;
+export interface RiskResult {
+  address?: string;
+  level: 'LOW' | 'MEDIUM' | 'HIGH' | string;
   score: number;
+  tier?: RiskTier;
+  healthFactor?: number;
+  narrative?: string;
   issues: string[];
 }
 
 export interface PlanAction {
-  type: string;
+  type: 'ALERT' | 'REDUCE' | 'DIVERSIFY' | string;
   message: string;
 }
 
-export interface Plan {
+export interface ProtectionPlan {
   actions: PlanAction[];
 }
 
-export interface GovernanceAction {
-  type: string;
-  message: string;
-}
-
-export interface Governance {
+export interface GovernanceDecision {
   approved: boolean;
   reason: string;
-  enforcedActions: GovernanceAction[];
+  enforcedActions: PlanAction[];
 }
+
+// Backward-compatibility aliases
+export type Risk = RiskResult;
+export type Plan = ProtectionPlan;
+export type Governance = GovernanceDecision;
 
 export interface TreasuryScanResult {
   snapshot: Snapshot | null;
-  risk: Risk;
-  plan: Plan;
-  governance: Governance;
+  risk: RiskResult;
+  plan: ProtectionPlan;
+  decision?: GovernanceDecision;
+  governance?: GovernanceDecision;
 }

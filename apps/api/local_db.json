@@ -1,10 +1,5 @@
 {
-  "wallets": [
-    {
-      "address": "0x28c6c06290cc3f951796d21d003cc0c003e93ccc",
-      "type": "WHALE"
-    }
-  ],
+  "wallets": [],
   "positions": [],
   "users": []
 }

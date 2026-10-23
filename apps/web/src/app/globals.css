@@ -1,50 +1,168 @@
+@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,900,700,500&f[]=satoshi@500,700,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* -----------------------------
-   GLOBAL BASE STYLES (CHAIN SENTINEL)
------------------------------- */
+/* -------------------------------------------------------------
+   NEO-BRUTALIST STARK THEME SYSTEM
+-------------------------------------------------------------- */
+
+:root {
+  --bg-primary: #ffffff;
+  --text-primary: #0a0a0a;
+  --border-primary: #000000;
+  --accent-electric: #0096ff;
+}
 
 html,
 body {
-  background-color: white;
-  color: black;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+  background-color: #ffffff;
+  color: #0a0a0a;
+  font-family: 'Satoshi', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Brutalist Button Presets */
-/* ================================
-   CHAIN SENTINEL – NEO-BRUTALISM SYSTEM
-================================ */
-
-/* Base Brutalist Card */
-.card-brutalist {
-  @apply bg-white border-4 border-black p-6 shadow-[8px_8px_0px_#000];
+/* Typography Hierarchy */
+h1, h2, h3, .font-display {
+  font-family: 'Cabinet Grotesk', system-ui, sans-serif;
+  letter-spacing: -0.04em;
+  font-weight: 900;
 }
 
-/* Blue Emphasis Card */
-.card-blue {
-  @apply bg-blue-100 border-4 border-black p-6 shadow-[8px_8px_0px_#000];
+.font-serif {
+  font-family: 'Instrument Serif', Georgia, serif;
 }
 
-/* Primary Blue Button */
-.btn-blue {
-  @apply bg-blue-600 hover:bg-blue-500 text-white border-4 border-black
-         font-black uppercase tracking-wide px-4 py-3
-         shadow-[6px_6px_0px_#000] transition active:translate-x-[2px] active:translate-y-[2px];
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
 }
 
-/* Base Brutalist Badge */
-.badge-blue {
-  @apply bg-blue-200 border-2 border-black px-3 py-1 text-xs font-black uppercase tracking-tight;
+/* Rigid Grid Lines */
+.rigid-grid {
+  background-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.08) 1px, transparent 1px);
+  background-size: 40px 40px;
 }
 
-/* Secondary Brutalist Button */
-.btn-brutalist {
-  @apply bg-white hover:bg-gray-100 text-black border-4 border-black
-         font-black uppercase tracking-wide px-4 py-3
-         shadow-[6px_6px_0px_#000] transition active:translate-x-[2px] active:translate-y-[2px];
+.rigid-border-grid {
+  border: 2px solid #000000;
 }
 
+/* Asymmetric Neo-Brutalist Cards with Zero-Blur Hard Shadows */
+.card-neo {
+  background-color: #ffffff;
+  border: 2px solid #000000;
+  box-shadow: 4px 4px 0px 0px #000000;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-neo:hover {
+  transform: translate(-2px, -2px) scale(1.01);
+  box-shadow: 8px 8px 0px 0px #000000;
+}
+
+/* Punchy Hover Scale Card */
+.card-neo-punchy {
+  background-color: #ffffff;
+  border: 2px solid #000000;
+  box-shadow: 4px 4px 0px 0px #000000;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-neo-punchy:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 8px 8px 0px 0px #000000;
+}
+
+/* Bold Interactive Buttons */
+.btn-neo-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0096ff;
+  color: #ffffff;
+  border: 2px solid #000000;
+  font-family: 'Cabinet Grotesk', system-ui, sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1rem 2.25rem;
+  box-shadow: 4px 4px 0px 0px #000000;
+  transition: all 0.1s ease;
+}
+
+.btn-neo-primary:hover {
+  background-color: #0080db;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px #000000;
+}
+
+.btn-neo-primary:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px #000000;
+}
+
+.btn-neo-white {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  color: #000000;
+  border: 2px solid #000000;
+  font-family: 'Cabinet Grotesk', system-ui, sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.85rem 1.75rem;
+  box-shadow: 4px 4px 0px 0px #000000;
+  transition: all 0.1s ease;
+}
+
+.btn-neo-white:hover {
+  background-color: #0096ff;
+  color: #ffffff;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px #000000;
+}
+
+.btn-neo-white:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px #000000;
+}
+
+/* Zero-blur hard shadows */
+.shadow-hard-sm {
+  box-shadow: 2px 2px 0px 0px #000000;
+}
+.shadow-hard {
+  box-shadow: 4px 4px 0px 0px #000000;
+}
+.shadow-hard-md {
+  box-shadow: 6px 6px 0px 0px #000000;
+}
+.shadow-hard-lg {
+  box-shadow: 8px 8px 0px 0px #000000;
+}
+.shadow-hard-blue {
+  box-shadow: 4px 4px 0px 0px #0096ff;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #ffffff;
+  border-left: 2px solid #000000;
+}
+::-webkit-scrollbar-thumb {
+  background: #000000;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #0096ff;
+}

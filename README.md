@@ -1,655 +1,167 @@
-## 🥊 Chain Sentinel — Real-time on-chain intelligence platform
+# Chain Sentinel -- Real-Time On-Chain Intelligence & Defense Platform
 
-Real-time on-chain intelligence platform
-
-An AI-powered on-chain security agent for DeFi treasuries. Chain Sentinel doesn't react to loss—**it prevents loss**.
-
-> **Built for the Electron 8.0 – AI Agent Hackathon** 🚀
-> *Hosted by IQAI, OpenMind, and EwhaChain*
+> Autonomous multi-agent on-chain defensive layer for DeFi treasuries and wallets.
+> Built by WWHS? for ELECTROTHON 8.0.
+> Devfolio Project Link: https://devfolio.co/projects/chain-sentinel-f7cf
 
 ---
 
-### What Makes Chain Sentinel Perfect for This Hackathon
+## 1. The Mission: Prevent Loss, Do Not React To It
 
-✅ Built entirely with **ADK-TS** (Agent Development Kit – TypeScript)       
-✅ Multi-agent AI system for autonomous decision-making             
-✅ Deployed on **ATP** (Agent Tokenization Platform)            
-✅ On-chain security agent with real-world DeFi impact           
-✅ Production-ready monorepo architecture         
-✅ Fully open-source and transparent
+Decentralized Finance operates at block speed. When lending collateral devalues or a whale triggers a multi-million-dollar cascade, human operational response is fundamentally too slow. By the time a risk manager receives a manual notification, the collateral is already liquidated.
 
----
-
-## 🎯 The Problem
-
-Decentralized Finance has unlocked trillion-dollar opportunities—but it has also created one of the most dangerous financial environments ever built.
-
-Today, DeFi users, DAOs, and treasuries face:
-
-- ❌ Rug pulls
-- ❌ Smart contract exploits
-- ❌ Overexposure to a single asset
-- ❌ Liquidity collapses
-- ❌ Human delay in risk response
-- ❌ No real-time defensive AI layer
-
-Most security systems in DeFi are:
-
-- **Reactive** → they respond *after* funds are lost
-- **Manual** → humans must interpret dashboards
-- **Slow** → attacks happen in seconds
-
-### ⚠️ The Truth
-
-> In DeFi, **by the time you "notice" risk, it is already too late.**
+Chain Sentinel introduces an autonomous, preventive defense layer:
+- WhaleWatch Mempool Radar: Intercepts transactions exceeding $500,000 USD before block inclusion and classifies intent (Accumulation, Distribution, CEX Deposit).
+- LiquidShield Aave V3 Engine: Continuous on-chain health factor monitoring with distance-to-liquidation analytics and automated partial debt repayment calculations.
+- Cross-Agent Threat Correlator: Discovers compound risks when whale dumps intersect with at-risk lending positions within a sliding window.
+- ADK-TS Multi-Agent Consensus: Specialized autonomous agents built with @iqai/adk (Watcher, Risk, Planner, Governance) backed by deterministic safety vetoes.
+- ATP Tokenized Security Quotas: Registered with the Agent Tokenization Platform (cSNT) for verifiable autonomous execution.
+- Neo-Brutalist Operations Matrix: High-contrast, rigid-grid Next.js 16 dashboard featuring oversized Cabinet Grotesk typography, zero-blur hard shadows, and interactive hover-reveals.
 
 ---
 
-## ✅ The Solution
+## 2. Project Context & Team
 
-**Chain Sentinel is an AI-powered on-chain security agent that acts as a real-time defensive layer for DeFi treasuries.**
-
-Instead of waiting for damage, Chain Sentinel:
-
-✅ Continuously monitors treasury activity
-✅ Analyzes DeFi exposure using AI agents
-✅ Detects financial and protocol-level risk
-✅ Predicts dangerous concentration patterns
-✅ Generates real-time protective actions
-✅ Acts as a **digital bodyguard for DeFi funds**
-
-> **Chain Sentinel doesn't react to loss. It prevents loss.**
+- Project: Chain Sentinel
+- Team: WWHS?
+- Hackathon: ELECTROTHON 8.0
+- Devfolio Submission: https://devfolio.co/projects/chain-sentinel-f7cf
+- Repository: https://github.com/vismaygawai/ChainSentinel
 
 ---
 
-## 🚀 How It Works (In 3 Steps)
+## 3. Monorepo Architecture
 
-Users just:
+Retaining an optimized, production-hardened pnpm workspace:
 
-1. **Enter** their treasury address
-2. **Click** "Scan"
-3. **Instantly get**:
-   - Risk score
-   - Exposure breakdown
-   - AI-generated protection advice
-
-### Example Output:
-
-```
-❗ "Your treasury is 78% exposed to one asset."
-❗ "Liquidity risk detected."
-✅ "Diversification recommended."
-✅ "Reduce exposure to prevent cascade failure."
-```
-
----
-
-## 🏛️ Project Structure
-
-Chain Sentinel is built as a **full-stack, AI-powered DeFi security system** with a **modular, scalable monorepo architecture**.
-
-```
+```text
 ChainSentinel/
-├── apps/                    # User-facing applications
-│   ├── api/                 # Backend API (Fastify)
-│   │   ├── src/
-│   │   │   ├── routes/      # API endpoints
-│   │   │   ├── controllers/ # Request handlers
-│   │   │   ├── services/    # Business logic
-│   │   │   ├── config/      # Configuration
-│   │   │   ├── middlewares/ # Error handling
-│   │   │   └── types/       # TypeScript types
-│   │   └── package.json
-│   └── web/                 # Frontend Dashboard (Next.js)
-│       ├── src/
-│       │   ├── app/         # Page routes
-│       │   ├── components/  # UI components
-│       │   ├── hooks/       # Custom hooks
-│       │   ├── lib/         # Utilities
-│       │   └── types/       # Types
-│       └── package.json
-├── packages/                # Shared libraries
-│   └── agents-core/         # AI Agent system
-│       ├── src/
-│       │   ├── agents/      # AI workers
-│       │   ├── tools/       # External capabilities
-│       │   ├── workflows/   # Agent orchestration
-│       │   ├── memory/      # Historical data
-│       │   ├── policies/    # Risk policies
-│       │   ├── schemas/     # Data schemas
-│       │   └── types.ts     # Shared types
-│       └── package.json
-├── docs/                    # Documentation
-│   ├── ARCHITECTURE.md      # System design
-│   ├── DEMO-SCRIPT.md       # Video narration
-│   ├── JUDGING-MAP.md       # Hackathon mapping
-│   ├── ATP-DEPLOYMENT.md    # ATP integration
-│   ├── API-DOCS.md          # API reference
-│   └── ROADMAP.md           # Future vision
-├── scripts/                 # Automation scripts
-│   ├── build-all.ts         # Build entire project
-│   ├── deploy-atp.ts        # Deploy agent to ATP
-│   └── seed-demo-data.ts    # Add demo data
-├── .github/                 # CI/CD workflows
-├── tsconfig.base.json       # Global TypeScript config
-├── pnpm-workspace.yaml      # Monorepo workspace
-└── .env.example             # Environment template
+├── .github/
+│   └── workflows/
+│       ├── ci.yaml                   # Automated PR/push build & test workflow
+│       └── lint.yaml                 # Code style & ESLint workflow
+├── apps/
+│   ├── web/                          # Next.js 16 Neo-Brutalist security dashboard
+│   │   ├── src/app/                  # App Router: landing page & command matrix
+│   │   ├── src/components/           # Asymmetric cards, hover-reveals, charts
+│   │   ├── src/hooks/                # Live WebSocket & reactive risk scan hooks
+│   │   └── src/types/                # Shared UI & protocol DTO definitions
+│   └── api/                          # Fastify REST & WebSocket microservice
+│       ├── src/config/               # Multi-chain RPC configs & token registries
+│       ├── src/controllers/          # Scan, whale watch & position controllers
+│       ├── src/routes/               # Modular routes (/api/risk-scan, /alerts, /atp)
+│       ├── src/services/             # ATP & Treasury orchestration services
+│       └── src/websocket/            # Real-time threat feed with replay buffer
+├── packages/
+│   └── agents-core/                  # ADK-TS multi-agent engine
+│       ├── src/agents/               # Watcher, Risk, Planner, Governance agents
+│       ├── src/correlation/          # Sliding-window compound alert correlator
+│       ├── src/memory/               # Cosine-similarity threat vector store
+│       ├── src/policies/             # Conservative, Balanced, Aggressive risk models
+│       ├── src/queues/               # Risk-tiered prioritized scan queue
+│       └── src/tools/                # Aave V3, Ethers v6, & price oracles
+├── docs/                             # Comprehensive specifications
+│   ├── ARCHITECTURE.md               # Complete multi-agent architecture & diagrams
+│   ├── API-DOCS.md                   # REST endpoints & WebSocket event protocol
+│   ├── ATP-DEPLOYMENT.md             # Agent Tokenization Platform registration guide
+│   ├── DEMO-SCRIPT.md                # 3-minute hackathon judging walkthrough
+│   ├── JUDGING-MAP.md                # Hackathon track & criteria cross-reference
+│   └── ROADMAP.md                    # Protocols roadmap (Q1-Q4)
+├── scripts/                          # Developer tooling & deployment scripts
+│   ├── build-all.ts                  # Unified monorepo build runner
+│   ├── deploy-atp.ts                 # ATP registration & tokenization script
+│   ├── seed-demo-data.ts             # Test wallets & high-exposure demo seeder
+│   └── check-node.js                 # Node >= 20 environment validator
+├── bin/                              # Archived legacy components & temporary artifacts
+├── .env.example                      # Consolidated environment configuration template
+├── package.json                      # Workspace root scripts & pnpm engines
+├── pnpm-workspace.yaml               # Monorepo workspace boundaries
+├── tsconfig.base.json                # Shared strict TypeScript configuration
+└── README.md                         # Monorepo overview, quickstart & architecture
 ```
 
 ---
 
-## 📊 Architecture Overview
+## 4. Quickstart Guide
 
-```
-User → Web Dashboard → API → AI Agents → Risk Analysis → Protection Advice → User
-```
+### 4.1 Prerequisites
+- Node.js: >= 20.0.0
+- pnpm: >= 9.0.0
 
-### Core Components:
-
-| Component      | Technology      | Role                          |
-| -------------- | --------------- | ----------------------------- |
-| **Web**        | Next.js + React | User interface & dashboard    |
-| **API**        | Fastify + TS    | Backend server & orchestrator |
-| **Agents**     | ADK-TS          | AI decision-making engine     |
-| **Tools**      | RPC/DeFi APIs   | Blockchain & protocol access  |
-| **Policies**   | Config files    | Risk management rules         |
-
----
-
-## 🤖 AI Agent System
-
-Chain Sentinel runs a **multi-agent AI system** where each agent is specialized and autonomous:
-
-| AI Agent             | Role                              |
-| -------------------- | --------------------------------- |
-| **Watcher Agent**    | Reads treasury & asset balances   |
-| **Risk Agent**       | Calculates exposure & danger      |
-| **Planner Agent**    | Generates safety actions          |
-| **Governance Agent** | Enforces policy constraints       |
-
-### How They Work Together:
-
-1. **Watcher** → Fetches treasury data from blockchain
-2. **Risk Agent** → Analyzes exposure & detects patterns
-3. **Planner** → Generates protection recommendations
-4. **Governance** → Validates against user policies
-
----
-
-## 🧠 Built with ADK-TS
-
-Chain Sentinel is **fully implemented using IQAI's Agent Development Kit for TypeScript (ADK-TS)**, the industry standard for building autonomous AI agents on blockchain.
-
-### ADK-TS Implementation
-
-Our four specialized agents are built using `AgentBuilder` pattern:
-
-```typescript
-// Example: Risk Analysis Agent using ADK-TS
-import { AgentBuilder } from "@iqai/adk";
-
-export async function initRiskAgent() {
-  return await AgentBuilder.create("risk_analysis_agent")
-    .withModel("qwen2.5")
-    .withInstruction("Analyze treasury concentration and financial risk...")
-    .build();
-}
-```
-
-### Agent Architecture
-
-Each agent follows the ADK-TS pattern:
-
-**1. Watcher Agent** – Real-time Treasury Monitor
-```typescript
-import { AgentBuilder } from "@iqai/adk";
-// Fetches on-chain data using RPC calls
-// Validates treasury balances and positions
-// Returns structured TreasurySnapshot
-```
-
-**2. Risk Agent** – Autonomous Risk Analyzer
-```typescript
-// Uses ADK-TS AgentBuilder for LLM decision-making
-// Analyzes concentration, diversification, and size risk
-// Generates risk scores with deterministic fallbacks
-// Returns RiskResult with level (LOW/MEDIUM/HIGH)
-```
-
-**3. Planner Agent** – Protection Strategy Generator
-```typescript
-// Generates mitigation actions based on risk assessment
-// Returns structured ProtectionPlan with action types:
-// - ALERT: Notify operators
-// - REDUCE: Lower exposure
-// - DIVERSIFY: Add assets
-```
-
-**4. Governance Agent** – Policy Enforcer
-```typescript
-// Final safety decision-maker
-// Enforces hard rules: HIGH risk + large treasury = BLOCKED
-// Uses ADK-TS LLM with deterministic fallbacks
-// Returns GovernanceDecision with approval/block reasoning
-```
-
-### LLM Integration with ADK-TS
-
-Chain Sentinel uses a **LLM + Deterministic Fallback Pattern**:
-
-```typescript
-// ADK Agent calls LLM (Qwen model)
-const llmResponse = await callQwenLLM(prompt);
-
-// Robust JSON extraction from LLM response
-const parsed = extractJSON<RiskResult>(llmResponse);
-
-// Validates structure and types
-if (validated) {
-  return llmResult;
-}
-
-// Falls back to deterministic logic if LLM response malformed
-return treasuryTools.generateBaseRisk(snapshot);
-```
-
-### Tools & Capabilities
-
-ADK-TS agents leverage custom tools:
-
-```typescript
-export const treasuryTools = {
-  analyzeConcentration: (snapshot) => {...},
-  analyzeSizeExposure: (totalValue) => {...},
-  generateBaseRisk: (snapshot) => {...}
-};
-```
-
-### Multi-Agent Orchestration Workflow
-
-All agents are orchestrated in a **sequential decision pipeline** using ADK-TS:
-
-```typescript
-export async function runTreasuryWorkflow(address: string) {
-  // 1. Initialize all ADK agents
-  await initRiskAgent();
-  await initPlannerAgent();
-  await initGovernanceAgent();
-
-  // 2. Run sequential pipeline
-  const snapshot = await watchTreasury(address);        // Watcher
-  const risk = await analyzeRisk(snapshot);             // Risk Agent (ADK)
-  const plan = await generateProtectionPlan(risk);      // Planner Agent (ADK)
-  const governance = await enforceGovernance({...});    // Governance Agent (ADK)
-
-  return { snapshot, risk, plan, governance };
-}
-```
-
-### Why ADK-TS?
-
-- ✅ **Native TypeScript support** – Full type safety across agent ecosystem
-- ✅ **AgentBuilder pattern** – Declarative, composable agent definitions
-- ✅ **LLM flexibility** – Supports Gemini, GPT-4, Claude, custom models
-- ✅ **Production-ready** – Error handling, timeouts, retries built-in
-- ✅ **ATP compatible** – Agents launch directly on IQAI's ATP platform
-- ✅ **Deterministic fallbacks** – Never fails completely, always returns valid decisions
-- ✅ **Tool integration** – Seamless blockchain and external API access
-
-### Deployment Ready
-
-Chain Sentinel's ADK-TS agents are ready for **ATP (Agent Tokenization Platform)** deployment, where they will operate as autonomous, tokenized agents on IQAI's infrastructure.
-
----
-
-## 🛠️ Tech Stack
-
-### Frontend
-- **Next.js 15** - React framework
-- **TypeScript** - Type safety
-- **Tailwind CSS** - Styling
-- **React Hooks** - State management
-
-### Backend
-- **Fastify** - HTTP server
-- **TypeScript** - Type safety
-- **Node.js** - Runtime
-
-### AI/Agents
-- **ADK-TS** - Agent framework
-- **Vector Store** - Memory & learning
-- **JSON Schemas** - Data validation
-
-### Blockchain
-- **Web3.js / ethers.js** - RPC calls
-- **Multi-chain** - Support for major chains
-- **Real-time indexing** - Live data feeds
-
-### DevOps
-- **pnpm** - Package manager
-- **Monorepo** - Workspace structure
-- **TypeScript** - Global type safety
-- **GitHub Actions** - CI/CD
-
----
-
-## 📋 Features
-
-### ✅ Current (MVP)
-
-- [x] Treasury scanning via contract address
-- [x] Real-time risk assessment
-- [x] Asset exposure analysis
-- [x] Protection recommendation engine
-- [x] Web dashboard interface
-- [x] REST API endpoints
-- [x] Multi-chain support
-- [x] Risk policy configurations
-
-### 🚀 Roadmap
-
-- [ ] Automated on-chain execution
-- [ ] Advanced vector memory system
-- [ ] Cross-chain risk aggregation
-- [ ] Real-time notifications
-- [ ] DAO governance integration
-- [ ] ATP protocol deployment
-- [ ] Autonomous defense layer
-- [ ] Global security network
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- pnpm 8+
-- An Ethereum RPC endpoint
-- An API key (for price feeds if needed)
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/vismaygawai/ChainSentinel.git
-   cd ChainSentinel
-   ```
-
-2. **Install dependencies**
-   ```bash
-   pnpm install
-   ```
-
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env.local
-   # Edit .env.local with your RPC URLs and API keys
-   ```
-
-4. **Build the project**
-   ```bash
-   pnpm run build
-   ```
-
-### Running Locally
-
-#### Start the Backend API
-
+### 4.2 Installation
 ```bash
-cd apps/api
-pnpm run dev
+# Clone the repository
+git clone https://github.com/vismaygawai/ChainSentinel.git
+cd ChainSentinel
+
+# Install workspace dependencies
+pnpm install
 ```
 
-The API will start on `http://localhost:3001`
-
-#### Start the Frontend
-
+### 4.3 Environment Setup
 ```bash
-cd apps/web
-pnpm run dev
+cp .env.example .env
 ```
+Configure your keys in .env (Google Gemini AI API key, Ethereum RPC URL, Alchemy API key, ATP endpoint).
 
-The dashboard will be available at `http://localhost:3000`
-
-### Using the API
-
-**Scan a treasury for risk:**
-
+### 4.4 Running Locally
 ```bash
-curl -X POST http://localhost:3001/api/scan \
-  -H "Content-Type: application/json" \
-  -d '{
-    "treasuryAddress": "0x1234...",
-    "chainId": 1,
-    "riskPolicy": "balanced"
-  }'
+# Start all services concurrently (Frontend on :3000, API on :3001)
+pnpm dev
+
+# Or run individual services:
+pnpm --filter api dev      # Fastify API & WebSocket service
+pnpm --filter web dev      # Next.js 16 Web Dashboard
 ```
 
-**Response:**
-
-```json
-{
-  "riskScore": 7.2,
-  "exposure": {
-    "ETH": 45,
-    "USDC": 30,
-    "USDT": 25
-  },
-  "alerts": [
-    "High concentration in single stablecoin",
-    "Potential liquidity risk detected"
-  ],
-  "recommendations": [
-    "Diversify stablecoin holdings",
-    "Consider rebalancing to reduce concentration"
-  ],
-  "protectionActions": [
-    {
-      "action": "REDUCE_EXPOSURE",
-      "token": "USDC",
-      "targetPercentage": 15
-    }
-  ]
-}
-```
-
----
-
-## 📚 API Documentation
-
-See [`docs/API-DOCS.md`](docs/API-DOCS.md) for detailed endpoint documentation.
-
----
-
-## 🔗 Hackathon Resources & Support
-
-### Communication & Support
-
-- 💬 **GitHub Discussion:** https://github.com/vismaygawai/ChainSentinel/discussions/
-- 🐦 **Discord Channel:** https://discord.gg/UbQaZkznwr
-- 📺 **YouTube Channel:** https://www.youtube.com/@iqtoken
-
-### ADK-TS (Agent Development Kit for TypeScript)
-
-- 📚 **ADK-TS GitHub Repo:** https://github.com/IQAIcom/adk-ts
-- 📖 **ADK-TS Docs:** https://adk.iqai.com/
-- 🔧 **ADK-TS Project Samples:** https://github.com/IQAIcom/adk-ts-samples
-- 🚀 **ADK-TS Starter Templates:** https://github.com/IQAIcom/adk-ts/tree/main/apps/starter-templates
-- 🎬 **ADK-TS Intro Playlist:** https://www.youtube.com/playlist?list=PLAohU1RSbOGWsYlQAiQKUQ9AktdlPbfp7
-- 📹 **Previous Workshops:** https://youtube.com/playlist?list=PLAohU1RSbOGXm4aoA7XNkXN9JDHDT_nqP
-
-### ATP (Agent Tokenization Platform)
-
-- 🌐 **Official Website:** https://iqai.com/
-- 📘 **ATP Launch Guide:** https://learn.iq.wiki/iq/iq/agent-tokenization-platform-atp/launching-tokenized-agent-on-atp
-
-### OpenMind
-
-- 🔗 **GitHub (OM1):** https://openmind.org
-- 📚 **Documentation:** https://docs.openmind.org/api-reference/introduction
-- 🎓 **Tutorials:** https://docs.openmind.org/examples/overview
-
----
-
-## 📚 API Documentation
-
-See [`docs/API-DOCS.md`](docs/API-DOCS.md) for detailed endpoint documentation.
-
----
-
-## 🏗️ System Architecture
-
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for detailed system design and data flow diagrams.
-
----
-
-## 🎬 Demo & Testing
-
-### Run Demo Script
-
+### 4.5 Running Tests & Builds
 ```bash
-pnpm run seed-demo
+# Run multi-agent governance and ADK-TS test suite
+pnpm test
+
+# Typecheck backend and agent core
+pnpm typecheck
+
+# Build web application for production
+pnpm build
 ```
 
-This loads example treasuries and their risk profiles.
-
-### Watch the Demo Video Script
-
-See [`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md) for the narration of how to present Chain Sentinel.
-
----
-
-## 🏆 What Makes Chain Sentinel Unique
-
-| Aspect              | Traditional Tools    | Chain Sentinel              |
-| ------------------- | -------------------- | -------------------- |
-| **Approach**        | Static dashboards    | Live AI monitoring   |
-| **Decision-Making** | Manual               | Automated            |
-| **Response Time**   | Reactive (too slow)  | Preventive (real-time)|
-| **User Interaction**| Complex dashboards   | One-click scanning   |
-| **Scalability**     | Limited              | Autonomous network   |
-
-> Chain Sentinel is not just a dashboard. **It is a combat-ready AI defense system for DeFi.**
-
----
-
-## 💼 Use Cases
-
-- 🔐 **DAOs** - Protect treasury assets
-- 🔐 **Crypto Funds** - Manage fund risk
-- 🔐 **DeFi Startups** - Monitor protocol safety
-- 🔐 **Treasury Managers** - Real-time oversight
-- 🔐 **Web3 Security Teams** - Automated monitoring
-- 🔐 **Hackathon Projects** - Prize vault protection
-
----
-
-## 🔮 Vision for the Future
-
-Chain Sentinel is designed to evolve into:
-
-✅ A **fully autonomous DeFi firewall**
-✅ A **global network of security agents**
-✅ A **DAO-governed on-chain defense protocol**
-✅ A **real-time AI risk intelligence layer for Web3**
-
-Long-term, Chain Sentinel can:
-
-- Block malicious treasury flows automatically
-- Execute defensive transactions on-chain
-- Coordinate security across multiple chains
-- Protect billions in DeFi capital
-
----
-
-## 📖 Documentation
-
-Complete documentation available in the [`docs/`](docs/) folder:
-
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System design & data flow
-- **[API-DOCS.md](docs/API-DOCS.md)** - REST API reference
-- **[DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md)** - Video presentation script
-- **[ATP-DEPLOYMENT.md](docs/ATP-DEPLOYMENT.md)** - How to deploy to ATP
-- **[JUDGING-MAP.md](docs/JUDGING-MAP.md)** - Hackathon evaluation mapping
-- **[ROADMAP.md](docs/ROADMAP.md)** - Future development plan
-
----
-
-## 🧪 Testing
-
-Run tests:
-
+### 4.6 Demo Scripts & ATP Deployment
 ```bash
-pnpm run test
-```
+# Seed realistic demo wallets and lending positions
+pnpm seed
 
-Run linting:
-
-```bash
-pnpm run lint
-```
-
-Build all packages:
-
-```bash
-pnpm run build
+# Register Chain Sentinel agent on the Agent Tokenization Platform (ATP)
+pnpm deploy:atp
 ```
 
 ---
 
-## 🤝 Contributing
+## 5. Design System & UI Specification
 
-We welcome contributions! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-This project is licensed under the MIT License - see LICENSE file for details.
+The frontend adheres strictly to a Neo-Brutalist aesthetic:
+- Rigid Grid: Visual structural borders (border-2 border-black), 40px grid matrix.
+- Zero-Blur Hard Shadows: High-impact contrast (box-shadow: 4px 4px 0px #000, 8px 8px 0px #000).
+- Typography: Oversized Cabinet Grotesk headlines (72px+), Satoshi body text, and Instrument Serif italic editorial accents.
+- Color Palette: Stark white (#ffffff), near-black (#0a0a0a), and electric blue (#0096ff).
+- Interactive Hover-Reveal: Cards reveal hidden technical breakdowns, risk vectors, simulation diffs, and agent decision trees on hover.
+- Asymmetric Shapes: Bento-style grid with asymmetric column spans and punchy hover scaling.
 
 ---
 
-Chain Sentinel is built with ❤️ for DeFi security.
+## 6. Documentation Index
 
-### Hackathon Organizers
-
-**IQAI** - Integrates artificial intelligence with decentralized finance through the Agent Tokenization Platform (ATP). Enables developers to create, deploy, and manage tokenized AI agents that operate autonomously within blockchain ecosystems.
-
-**OpenMind** - Creating the universal operating system for intelligent machines. The OM1 platform allows robots and intelligent systems to perceive, adapt, and act in human environments, powered by FABRIC, a decentralized coordination layer. Based in San Francisco and founded by a Stanford-led team.
-
-**EwhaChain** - The blockchain academic society at Ewha Womans University, empowering students to become active contributors to Korea's blockchain ecosystem through structured learning and hands-on project experience.
-
-### Prize Sponsors
-
-- 🌾 **Frax Finance** - Leader in stablecoin technology
-- 🇰🇷 **KRWQ** - First digital Korean Won
+- Architecture & Multi-Agent Design: docs/ARCHITECTURE.md
+- REST & WebSocket API Reference: docs/API-DOCS.md
+- ATP Deployment & Tokenomics: docs/ATP-DEPLOYMENT.md
+- Hackathon Demo & Judging Walkthrough: docs/DEMO-SCRIPT.md
+- Hackathon Judging Criteria Map: docs/JUDGING-MAP.md
+- Protocol Roadmap: docs/ROADMAP.md
 
 ---
 
-## 🚨 Security Disclaimer
+## 7. License & Credits
 
-Chain Sentinel provides risk assessment and recommendations. Always conduct your own due diligence. AI predictions are not financial advice. Use at your own risk.
-
----
-
-
-## 🥊 Final Tagline
-
-> **Chain Sentinel — Real-time on-chain intelligence platform**
-
-DeFi is powerful.
-DeFi is open.
-But DeFi is also dangerous.
-
-**Chain Sentinel exists for one reason:**
-
-🥊 *To fight risk before it destroys your protocol.*
-
----
-
-**Built with AI. Secured by Intelligence. Protected by Chain Sentinel.** 🚀
+Chain Sentinel is open-source software under the MIT License.
+Built for ELECTROTHON 8.0 by WWHS?
+Devfolio Link: https://devfolio.co/projects/chain-sentinel-f7cf

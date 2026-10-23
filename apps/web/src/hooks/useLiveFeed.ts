@@ -4,7 +4,7 @@
 import { useEffect, useState, useRef } from 'react'
 import type { CompoundAlert } from '@/types'
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3005/ws/feed'
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws/feed'
 
 export function useLiveFeed() {
     const [alerts, setAlerts] = useState<CompoundAlert[]>([])

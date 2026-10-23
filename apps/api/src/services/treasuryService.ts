@@ -1,0 +1,68 @@
+import {
+  runTreasuryWorkflow,
+  watchWalletWorkflow,
+  scanPositionWorkflow,
+  alertCorrelator,
+  prisma,
+} from '../../../../packages/agents-core/src/index.ts';
+
+export class TreasuryService {
+  public async scanTreasury(address: string) {
+    return runTreasuryWorkflow(address);
+  }
+
+  public async registerWhaleWatch(address: string) {
+    await watchWalletWorkflow.registerWallet(address);
+    return {
+      status: 'registered',
+      address,
+      service: 'WhaleWatch',
+      message: 'Wallet successfully registered for WhaleWatch mempool monitoring.',
+    };
+  }
+
+  public async registerPosition(address: string) {
+    await scanPositionWorkflow.registerPosition(address);
+    return {
+      status: 'registered',
+      address,
+      service: 'LiquidShield',
+      message: 'Position successfully registered for LiquidShield Aave monitoring.',
+    };
+  }
+
+  public getWhaleAlerts(address?: string) {
+    if (address) {
+      const profile = watchWalletWorkflow.getWalletProfile(address);
+      return { alerts: profile?.lastWWSnapshot ? [profile.lastWWSnapshot] : [] };
+    }
+    return {
+      totalAlerts: 0,
+      windowStats: alertCorrelator.windowStats(),
+    };
+  }
+
+  public getHealthSnapshots(address: string) {
+    const profile = scanPositionWorkflow.getWalletProfile(address);
+    if (!profile || !profile.lastLSSnapshot) {
+      return null;
+    }
+    return { address, snapshots: profile.lastLSSnapshot };
+  }
+
+  public async getMonitoredWorkflows() {
+    const wallets = await prisma.wallet.findMany();
+    return wallets.map((w: any) => {
+      const wwProfile = watchWalletWorkflow.getWalletProfile(w.address);
+      const lsProfile = scanPositionWorkflow.getWalletProfile(w.address);
+      return {
+        address: w.address,
+        type: w.type,
+        ww: wwProfile ? { active: true, lastAlert: wwProfile.lastWWSnapshot } : { active: false },
+        ls: lsProfile ? { active: true, lastSnapshot: lsProfile.lastLSSnapshot } : { active: false },
+      };
+    });
+  }
+}
+
+export const treasuryService = new TreasuryService();

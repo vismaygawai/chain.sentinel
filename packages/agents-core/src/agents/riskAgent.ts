@@ -1,8 +1,9 @@
 import { createAgent } from '../lib/agentFactory.ts'
 import type { RiskTier } from '../queues/scanQueue.ts'
 import { classifyTier } from '../queues/scanQueue.ts'
+import type { RiskResult } from '../types.ts'
 
-export interface RiskAssessment {
+export interface RiskAssessment extends RiskResult {
     address: string
     healthFactor: number
     tier: RiskTier
@@ -23,7 +24,13 @@ export function deterministicScore(
     else if (healthFactor < 2.0) score = 40
     else score = 10
 
-    const narrative = `Health factor ${healthFactor.toFixed(4)} → tier ${tier}, risk score ${score}/100`
+    const narrative = `Health factor ${healthFactor.toFixed(4)} -> tier ${tier}, risk score ${score}/100`
+
+    const level: 'LOW' | 'MEDIUM' | 'HIGH' =
+        tier === 'CRITICAL' || tier === 'DANGER' ? 'HIGH' : tier === 'WARNING' ? 'MEDIUM' : 'LOW'
+
+    const issues: string[] = []
+    if (healthFactor < 1.3) issues.push(`Low health factor: ${healthFactor.toFixed(2)}`)
 
     return {
         address,
@@ -32,6 +39,8 @@ export function deterministicScore(
         score,
         narrative,
         source: 'deterministic',
+        level,
+        issues,
     }
 }
 
@@ -55,14 +64,20 @@ export async function assessRisk(
     if (typeof addressOrSnapshot === 'object' && addressOrSnapshot.totalUsdValue !== undefined) {
         // Handle Treasury Snapshot
         const snapshot = addressOrSnapshot;
-        const score = snapshot.totalUsdValue > 1000000 ? 80 : 20; // Example logic
+        const score = snapshot.totalUsdValue > 1000000 ? 80 : 20;
+        const level: 'LOW' | 'MEDIUM' | 'HIGH' = score > 70 ? 'HIGH' : score > 40 ? 'MEDIUM' : 'LOW';
+        const issues: string[] = [];
+        if (level === 'HIGH') issues.push('Heavy treasury concentration');
+
         return {
             address: snapshot.address,
             healthFactor: 0,
             tier: 'SAFE',
             score: score,
             narrative: `Treasury value $${snapshot.totalUsdValue.toFixed(2)} analyzed. Exposure within normal bounds.`,
-            source: 'deterministic'
+            source: 'deterministic',
+            level,
+            issues,
         };
     }
     
@@ -74,7 +89,7 @@ export async function assessRisk(
 // Alias for legacy treasury workflow support
 export { assessRisk as analyzeRisk };
 export async function initRiskAgent() {
-    console.log("✅ Risk Agent ready (EH baseline)");
+    console.log("Risk Agent ready (EH baseline)");
 }
 
 export const riskAgent = createAgent({

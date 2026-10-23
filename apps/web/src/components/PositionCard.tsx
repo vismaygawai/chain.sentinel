@@ -1,105 +1,118 @@
+'use client';
 
-'use client'
-
-import type { LiquidShieldPosition, RiskTier } from '@/types'
+import type { LiquidShieldPosition, RiskTier } from '@/types';
 
 interface PositionCardProps {
-    position: LiquidShieldPosition
+  position: LiquidShieldPosition;
 }
 
 function truncateAddress(address: string): string {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
 function formatUSD(value: string): string {
-    const num = parseFloat(value)
-    if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`
-    if (num >= 1_000) return `$${(num / 1_000).toFixed(1)}K`
-    return `$${num.toFixed(2)}`
+  const num = parseFloat(value);
+  if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`;
+  if (num >= 1_000) return `$${(num / 1_000).toFixed(1)}K`;
+  return `$${num.toFixed(2)}`;
 }
 
 function getTierConfig(tier: RiskTier): { label: string; className: string } {
-    switch (tier) {
-        case 'CRITICAL':
-            return { label: 'CRITICAL', className: 'bg-red-600 text-white' }
-        case 'DANGER':
-            return { label: 'DANGER', className: 'bg-orange-500 text-white' }
-        case 'WARNING':
-            return { label: 'WARNING', className: 'bg-yellow-400 text-black' }
-        default:
-            return { label: 'SAFE', className: 'bg-green-500 text-white' }
-    }
+  switch (tier) {
+    case 'CRITICAL':
+      return { label: 'CRITICAL', className: 'bg-red-600 text-white' };
+    case 'DANGER':
+      return { label: 'DANGER', className: 'bg-orange-500 text-white' };
+    case 'WARNING':
+      return { label: 'WARNING', className: 'bg-yellow-400 text-black' };
+    default:
+      return { label: 'SAFE', className: 'bg-green-500 text-white' };
+  }
 }
 
 function calculateGaugeFill(hf: number): number {
-    const min = 1.0
-    const max = 3.0
-    if (hf <= min) return 0
-    if (hf >= max) return 100
-    return ((hf - min) / (max - min)) * 100
+  const min = 1.0;
+  const max = 3.0;
+  if (hf <= min) return 0;
+  if (hf >= max) return 100;
+  return ((hf - min) / (max - min)) * 100;
 }
 
 export default function PositionCard({ position }: PositionCardProps) {
-    const latestSnapshot = position.snapshots?.[0]
-    const hf = latestSnapshot ? parseFloat(latestSnapshot.healthFactor) : 0
+  const latestSnapshot = position.snapshots?.[0];
+  const hf = latestSnapshot ? parseFloat(latestSnapshot.healthFactor) : 0;
 
-    let tier: RiskTier
-    if (hf < 1.1) tier = 'CRITICAL'
-    else if (hf < 1.3) tier = 'DANGER'
-    else if (hf < 2.0) tier = 'WARNING'
-    else tier = 'SAFE'
+  let tier: RiskTier;
+  if (hf < 1.1) tier = 'CRITICAL';
+  else if (hf < 1.3) tier = 'DANGER';
+  else if (hf < 2.0) tier = 'WARNING';
+  else tier = 'SAFE';
 
-    const tierConfig = getTierConfig(tier)
-    const gaugeFill = calculateGaugeFill(hf)
+  const tierConfig = getTierConfig(tier);
+  const gaugeFill = calculateGaugeFill(hf);
 
-    return (
-        <div className={`bg-white border-4 border-black p-6 flex flex-col gap-6 transition-all hover:shadow-[7px_7px_0px_#000] shadow-[5px_5px_0px_#000] relative ${tier === 'CRITICAL' ? 'animate-pulse' : ''}`}>
-            <div className="flex justify-between items-start">
-                <span className="font-mono text-base font-bold text-blue-600 underline decoration-4 underline-offset-4">{truncateAddress(position.address)}</span>
-                <div className={`px-3 py-1 text-xs font-black uppercase border-3 border-black ${tierConfig.className}`}>
-                    {tierConfig.label}
-                </div>
-            </div>
-
-            <div className="flex flex-col items-center gap-2">
-                <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Health Factor</div>
-                <div className="text-6xl font-black leading-none text-black [text-shadow:4px_4px_0px_theme(colors.blue.200)] transition-all">
-                    {hf.toFixed(2)}
-                </div>
-
-                <div className="w-full mt-2">
-                    <div className="flex justify-between text-[10px] font-black text-gray-400 mb-1">
-                        <span>1.0</span>
-                        <span>2.0</span>
-                        <span>3.0+</span>
-                    </div>
-                    <div className="w-full h-4 bg-gray-100 border-[3px] border-black relative overflow-hidden">
-                        <div
-                            className={`h-full transition-all duration-700 ${
-                                tier === 'SAFE' ? 'bg-green-500' :
-                                tier === 'WARNING' ? 'bg-yellow-400' :
-                                'bg-red-600'
-                            }`}
-                            style={{ width: `${gaugeFill}%` }}
-                        />
-                        <div
-                            className="absolute top-0 w-1 h-full bg-black -translate-x-1/2"
-                            style={{ left: `${Math.min(100, Math.max(0, gaugeFill))}%` }}
-                        />
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex flex-col gap-2 bg-blue-50 p-4 border-2 border-black">
-                <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black text-blue-900 uppercase">Collateral</span>
-                    <span className="font-mono text-sm font-bold text-black">{formatUSD(latestSnapshot?.collateral || '0')}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black text-blue-900 uppercase">Debt</span>
-                    <span className="font-mono text-sm font-bold text-red-600">{formatUSD(latestSnapshot?.debt || '0')}</span>
-                </div>
-            </div>
+  return (
+    <div
+      className={`group bg-white border-2 border-black p-6 flex flex-col gap-5 transition-all hover:shadow-hard-lg shadow-hard hover:-translate-y-1 relative ${
+        tier === 'CRITICAL' ? 'border-red-600' : ''
+      }`}
+    >
+      <div className="flex justify-between items-start">
+        <div>
+          <span className="font-mono text-xs text-gray-500 block uppercase">Aave V3 Position</span>
+          <span className="font-mono text-sm font-bold text-electric">
+            {truncateAddress(position.address)}
+          </span>
         </div>
-    )
+        <div className={`px-2.5 py-1 text-xs font-mono font-black uppercase border-2 border-black ${tierConfig.className}`}>
+          {tierConfig.label}
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center gap-1.5 py-2">
+        <div className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest">
+          Lending Health Factor
+        </div>
+        <div className="font-display text-4xl font-black text-black">
+          {hf > 0 ? hf.toFixed(2) : '—'}
+        </div>
+        <div className="w-full bg-[#f4f4f4] border-2 border-black h-3 overflow-hidden mt-1">
+          <div
+            className={`h-full transition-all duration-500 ${
+              tier === 'CRITICAL' || tier === 'DANGER' ? 'bg-red-600' : tier === 'WARNING' ? 'bg-yellow-400' : 'bg-green-500'
+            }`}
+            style={{ width: `${gaugeFill}%` }}
+          />
+        </div>
+        <div className="w-full flex justify-between font-mono text-[10px] text-gray-500">
+          <span>1.0 (LIQUIDATION)</span>
+          <span>2.0 (TARGET)</span>
+          <span>3.0+ (SAFE)</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 pt-2 border-t-2 border-black font-mono text-xs">
+        <div>
+          <span className="text-gray-500 block text-[10px] uppercase">Collateral</span>
+          <span className="font-bold text-black">{formatUSD(latestSnapshot?.collateral || '0')}</span>
+        </div>
+        <div>
+          <span className="text-gray-500 block text-[10px] uppercase">Borrow Debt</span>
+          <span className="font-bold text-black">{formatUSD(latestSnapshot?.debt || '0')}</span>
+        </div>
+      </div>
+
+      {/* Interactive Hover-Reveal */}
+      <div className="border-t-2 border-black pt-3 max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100 transition-all duration-200 overflow-hidden">
+        <span className="font-mono text-[10px] text-electric font-bold block mb-1">
+          // SENTINEL DEFENSIVE RECOMMENDATION
+        </span>
+        <p className="font-mono text-xs text-gray-800">
+          {hf < 1.3
+            ? `Execute emergency partial repay to elevate HF above 1.50 threshold.`
+            : `Position safe. Continuous polling frequency set at 3.0s.`}
+        </p>
+      </div>
+    </div>
+  );
 }

@@ -1,3 +1,5 @@
+import type { RiskTier } from './queues/scanQueue.ts';
+
 export interface WhaleScanResult {
     address: string;
     amount: string;
@@ -25,8 +27,8 @@ export interface WalletProfile {
 
 export interface CompoundAlert {
     walletAddress: string;
-    wwAlert?: WhaleScanResult;
-    lsAlert?: PositionSnapshot;
+    wwAlert?: WhaleScanResult | undefined;
+    lsAlert?: PositionSnapshot | undefined;
     isCorrelated: boolean;
     combinedUrgency: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 }
@@ -54,6 +56,9 @@ export interface RiskResult {
   level: 'LOW' | 'MEDIUM' | 'HIGH';
   score: number;
   issues: string[];
+  tier?: RiskTier;
+  healthFactor?: number;
+  narrative?: string;
 }
 
 export interface ProtectionPlan {

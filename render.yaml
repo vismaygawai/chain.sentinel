@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: chainsentinel-api
+    runtime: node
+    plan: free
+    buildCommand: pnpm install
+    startCommand: pnpm --filter api start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: ALCHEMY_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: RPC_URL
+        value: https://ethereum.publicnode.com

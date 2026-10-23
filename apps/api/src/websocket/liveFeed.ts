@@ -62,13 +62,17 @@ export function initCorrelatorHook(): void {
 export async function registerLiveFeed(fastify: FastifyInstance): Promise<void> {
     initCorrelatorHook()
 
-    // @ts-ignore
-    fastify.get('/ws/feed', { websocket: true }, (socket: any, _request: any) => {
+    const handleConnection = (socket: any, _request: any) => {
         connectedClients.add(socket)
         replayTo(socket)
         socket.on('close', () => connectedClients.delete(socket))
         socket.on('error', () => connectedClients.delete(socket))
-    })
+    }
+
+    // @ts-ignore
+    fastify.get('/ws/feed', { websocket: true }, handleConnection)
+    // @ts-ignore
+    fastify.get('/ws', { websocket: true }, handleConnection)
 }
 
 export function getClientCount(): number {

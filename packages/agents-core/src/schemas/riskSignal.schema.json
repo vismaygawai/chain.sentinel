@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RiskSignal",
+  "description": "Validation schema for Chain Sentinel on-chain threat signals and compound alerts",
+  "type": "object",
+  "properties": {
+    "signalId": {
+      "type": "string",
+      "description": "Unique identifier for the threat signal"
+    },
+    "walletAddress": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$",
+      "description": "Monitored EVM wallet address"
+    },
+    "protocol": {
+      "type": "string",
+      "enum": ["aave-v3", "uniswap-v3", "makerdao", "compound-v3", "eigenlayer", "general-treasury"]
+    },
+    "riskLevel": {
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    },
+    "healthFactor": {
+      "type": "number",
+      "minimum": 0
+    },
+    "riskScore": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "detectedIssues": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "compoundAlert": {
+      "type": "object",
+      "properties": {
+        "isCorrelated": { "type": "boolean" },
+        "whaleMoveAmountUSD": { "type": "number" },
+        "liquidationDistancePct": { "type": "number" },
+        "combinedUrgency": {
+          "type": "string",
+          "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+        }
+      }
+    },
+    "governanceRecommendation": {
+      "type": "object",
+      "properties": {
+        "approved": { "type": "boolean" },
+        "actionType": {
+          "type": "string",
+          "enum": ["ALERT", "REDUCE", "DIVERSIFY", "EMERGENCY_PAUSE"]
+        },
+        "reason": { "type": "string" }
+      },
+      "required": ["approved", "actionType", "reason"]
+    },
+    "timestamp": {
+      "type": "integer",
+      "description": "Unix timestamp in milliseconds"
+    }
+  },
+  "required": ["signalId", "walletAddress", "riskLevel", "riskScore", "timestamp"]
+}

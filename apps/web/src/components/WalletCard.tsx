@@ -1,93 +1,80 @@
+'use client';
 
-'use client'
-
-import type { WalletInfo } from '@/types'
+import type { WalletInfo } from '@/types';
 
 interface WalletCardProps {
-    wallet: WalletInfo
+  wallet: WalletInfo;
 }
 
 function truncateAddress(address: string): string {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
 function formatTime(timestamp: number | null): string {
-    if (!timestamp) return 'No alerts yet'
-    const diffMs = Date.now() - timestamp
-    const diffMin = Math.floor(diffMs / 60_000)
+  if (!timestamp) return 'No alerts yet';
+  const diffMs = Date.now() - timestamp;
+  const diffMin = Math.floor(diffMs / 60_000);
 
-    if (diffMin < 1) return 'Just now'
-    if (diffMin < 60) return `${diffMin}m ago`
-    if (diffMin < 1440) return `${Math.floor(diffMin / 60)}h ago`
-    return new Date(timestamp).toLocaleDateString()
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 1440) return `${Math.floor(diffMin / 60)}h ago`;
+  return new Date(timestamp).toLocaleDateString();
 }
 
 function getIntentConfig(intent: string): { label: string; className: string } {
-    switch (intent) {
-        case 'CEX_DEPOSIT':
-            return { label: 'CEX Deposit', className: 'bg-black text-white' }
-        case 'ACCUMULATION':
-            return { label: 'Accumulation', className: 'bg-green-600 text-white' }
-        case 'DISTRIBUTION':
-            return { label: 'Distribution', className: 'bg-red-600 text-white' }
-        default:
-            return { label: 'Unknown', className: 'bg-gray-500 text-white' }
-    }
+  switch (intent) {
+    case 'CEX_DEPOSIT':
+      return { label: 'CEX Deposit', className: 'bg-black text-white' };
+    case 'ACCUMULATION':
+      return { label: 'Accumulation', className: 'bg-green-600 text-white' };
+    case 'DISTRIBUTION':
+      return { label: 'Distribution', className: 'bg-red-600 text-white' };
+    default:
+      return { label: 'Active', className: 'bg-gray-200 text-black' };
+  }
 }
 
 export default function WalletCard({ wallet }: WalletCardProps) {
-    const historyCount = wallet.historyCount ?? 0
-    const isBaseline = historyCount < 5
-    const intentConfig = getIntentConfig(wallet.intent)
+  const intentConfig = getIntentConfig(wallet.intent || 'Active');
 
-    return (
-        <div className={`bg-white border-4 border-black p-5 flex flex-col gap-4 transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[7px_7px_0px_#000] shadow-[4px_4px_0px_#000] ${isBaseline ? 'bg-gray-50' : ''}`}>
-            <div className="flex justify-between items-start">
-                <div className="flex flex-col gap-1">
-                    <span className="font-mono text-base font-bold text-blue-600 underline decoration-2 underline-offset-2">{truncateAddress(wallet.address)}</span>
-                    {wallet.label && (
-                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{wallet.label}</span>
-                    )}
-                </div>
-                <span className={`px-2 py-0.5 text-[10px] font-black uppercase border-2 border-black ${intentConfig.className}`}>
-                    {intentConfig.label}
-                </span>
-            </div>
-
-            <div className="flex-1">
-                {isBaseline ? (
-                    <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xl">⏳</span>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-black uppercase text-black">Building baseline...</span>
-                                <span className="text-[10px] font-bold text-gray-500 uppercase">
-                                    {historyCount}/5 scans collected
-                                </span>
-                            </div>
-                        </div>
-                        <div className="h-3 bg-gray-200 border-2 border-black relative overflow-hidden">
-                            <div
-                                className="h-full bg-blue-600 transition-all duration-300"
-                                style={{ width: `${(historyCount / 5) * 100}%` }}
-                            />
-                        </div>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Last Alert</span>
-                            <span className="text-xs font-black text-black" suppressHydrationWarning>
-                                {formatTime(wallet.lastAlertTime ?? null)}
-                            </span>
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Scans</span>
-                            <span className="text-xs font-black text-black">{historyCount}</span>
-                        </div>
-                    </div>
-                )}
-            </div>
+  return (
+    <div className="group bg-white border-2 border-black p-6 flex flex-col justify-between gap-5 transition-all hover:shadow-hard-lg shadow-hard hover:-translate-y-1 relative">
+      <div className="flex justify-between items-start">
+        <div>
+          <span className="font-mono text-xs text-gray-500 block uppercase">WhaleWatch Monitored</span>
+          <span className="font-mono text-sm font-bold text-electric">
+            {truncateAddress(wallet.address)}
+          </span>
         </div>
-    )
+        <div className={`px-2.5 py-1 text-xs font-mono font-black uppercase border-2 border-black ${intentConfig.className}`}>
+          {intentConfig.label}
+        </div>
+      </div>
+
+      <div className="space-y-1 font-mono text-xs">
+        <div className="flex justify-between border-b border-gray-200 pb-1">
+          <span className="text-gray-500">Classification:</span>
+          <span className="font-bold">{wallet.label || 'Whale Multisig'}</span>
+        </div>
+        <div className="flex justify-between border-b border-gray-200 pb-1 pt-1">
+          <span className="text-gray-500">Last Activity:</span>
+          <span className="font-bold">{formatTime(wallet.lastAlertTime || null)}</span>
+        </div>
+        <div className="flex justify-between pt-1">
+          <span className="text-gray-500">Mempool Stream:</span>
+          <span className="font-bold text-green-600">CONNECTED</span>
+        </div>
+      </div>
+
+      {/* Interactive Hover Reveal */}
+      <div className="border-t-2 border-black pt-3 max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100 transition-all duration-200 overflow-hidden">
+        <span className="font-mono text-[10px] text-electric font-bold block mb-1">
+          // CORRELATION STATUS
+        </span>
+        <p className="font-mono text-xs text-gray-800">
+          Actively cross-referenced against lending market debt triggers.
+        </p>
+      </div>
+    </div>
+  );
 }

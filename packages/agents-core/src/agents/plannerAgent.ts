@@ -49,7 +49,7 @@ export async function generateProtectionPlan(risk: RiskResult): Promise<Protecti
 CURRENT RISK ASSESSMENT:
 - Risk Level: ${risk.level}
 - Risk Score: ${risk.score}/100
-- Identified Issues: ${risk.issues.join(" | ")}
+- Identified Issues: ${(risk.issues || []).join(" | ")}
 
 STRATEGY GUIDELINES:
 - HIGH risk: Always recommend ALERT (notify) and REDUCE (cut exposure)
@@ -96,7 +96,7 @@ OUTPUT ONLY THIS JSON:
     actions.push({ type: "DIVERSIFY", message: "Diversify treasury across multiple stable assets." });
   }
 
-  if (risk.level === "LOW") {
+  if ((risk.level === "LOW" || risk.tier === "SAFE")) {
     actions.push({ type: "ALERT", message: "Treasury is stable. Monitor regularly." });
   }
 
