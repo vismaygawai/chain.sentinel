@@ -3,7 +3,7 @@
 > Autonomous multi-agent on-chain defensive layer for DeFi treasuries and wallets.
 > Built by WWHS? for ELECTROTHON 8.0.
 > Live Website: https://chain-sentinel-web.vercel.app/
-> Live API & WebSockets: https://chain-sentinel-lt6e.onrender.com/
+> Live API & WebSockets: https://chain-sentinel.onrender.com/
 > Devfolio Project Link: https://devfolio.co/projects/chain-sentinel-f7cf
 
 ---
