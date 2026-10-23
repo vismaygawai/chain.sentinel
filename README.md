@@ -146,7 +146,82 @@ pnpm deploy:atp
 
 ---
 
-## 5. Design System & UI Specification
+## 5. Cloud Deployment Guide (Render & Vercel)
+
+Chain Sentinel is deployed as a resilient, high-performance distributed architecture:
+- Fastify REST & WebSocket API: Hosted on Render (Web Service)
+- Next.js 16 Web Dashboard: Hosted on Vercel (Production Edge Network)
+
+### 5.1 Backend API & WebSocket Deployment on Render
+
+Render hosts the autonomous multi-agent background workflows, real-time WebSocket feed, and mempool scanners.
+
+1. Create a New Web Service:
+   - Open the Render Dashboard (https://dashboard.render.com/).
+   - Click "New +" and select "Web Service".
+   - Connect the GitHub repository: `https://github.com/vismaygawai/chain.sentinel`.
+
+2. Configure Build & Runtime Settings:
+   - Name: `chain-sentinel-api` (or preferred name)
+   - Region: Select preferred region (e.g. Oregon, Frankfurt, Ohio)
+   - Branch: `master`
+   - Root Directory: Leave blank (uses root of repository)
+   - Runtime: `Node`
+   - Build Command: `pnpm install`
+   - Start Command: `pnpm --filter api start`
+   - Instance Type: Free or Starter
+
+3. Configure Environment Variables:
+   Under the "Environment" tab in Render, define the following variables:
+   - `PORT`: `10000`
+   - `HOST`: `0.0.0.0`
+   - `NODE_VERSION`: `20.x`
+   - `GEMINI_API_KEY`: Your Google Gemini API key
+   - `ALCHEMY_API_KEY`: Your Alchemy API key (for live mempool transaction streaming)
+   - `ETH_RPC_URL`: `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}` (or Ethereum RPC endpoint)
+   - `ATP_API_URL`: `https://api.atp.network` (optional)
+   - `ATP_AGENT_ID`: `cSNT-001` (optional)
+
+4. Verify Deployment:
+   - Click "Deploy Web Service".
+   - Once deployed, your backend is live at `https://chain-sentinel-lt6e.onrender.com`.
+   - HTTP Health Check: `GET https://chain-sentinel-lt6e.onrender.com/` returns status.
+   - WebSocket Feed: Connect to `wss://chain-sentinel-lt6e.onrender.com/ws/feed`.
+
+---
+
+### 5.2 Frontend Dashboard Deployment on Vercel
+
+Vercel hosts the responsive Neo-Brutalist dashboard with Turbopack, automated SSR caching, and edge routing.
+
+1. Import Project into Vercel:
+   - Navigate to the Vercel Dashboard (https://vercel.com/dashboard).
+   - Click "Add New..." -> "Project".
+   - Select and import `https://github.com/vismaygawai/chain.sentinel`.
+
+2. Configure Project Settings:
+   - Project Name: `chain-sentinel-web`
+   - Framework Preset: `Next.js`
+   - Root Directory: Click "Edit" and choose `apps/web`
+   - Production Branch: `master`
+   - Node.js Version: In Project Settings -> General, select `20.x`.
+
+3. Set Environment Variables:
+   Add the following environment variables in the Vercel project configuration:
+   - `NEXT_PUBLIC_API_URL`: `https://chain-sentinel-lt6e.onrender.com` (Render API URL)
+   - `NEXT_PUBLIC_WS_URL`: `wss://chain-sentinel-lt6e.onrender.com/ws/feed` (Render WebSocket stream URL)
+
+4. Deploy & Verify:
+   - Click "Deploy".
+   - Vercel installs workspace dependencies via pnpm and compiles the Next.js application.
+   - Your dashboard is live at `https://chain-sentinel-web.vercel.app/`.
+
+5. Continuous Integration & Automatic Deploys:
+   - Any git push to the `master` branch triggers automated GitHub Actions CI & Lint workflows, Render backend re-deployments, and Vercel production deployments.
+
+---
+
+## 6. Design System & UI Specification
 
 The frontend adheres strictly to a Neo-Brutalist aesthetic:
 - Rigid Grid: Visual structural borders (border-2 border-black), 40px grid matrix.
@@ -158,7 +233,7 @@ The frontend adheres strictly to a Neo-Brutalist aesthetic:
 
 ---
 
-## 6. Documentation Index
+## 7. Documentation Index
 
 - Architecture & Multi-Agent Design: docs/ARCHITECTURE.md
 - REST & WebSocket API Reference: docs/API-DOCS.md
@@ -169,7 +244,7 @@ The frontend adheres strictly to a Neo-Brutalist aesthetic:
 
 ---
 
-## 7. License & Credits
+## 8. License & Credits
 
 Chain Sentinel is open-source software under the MIT License.
 Built for ELECTROTHON 8.0 by WWHS?
