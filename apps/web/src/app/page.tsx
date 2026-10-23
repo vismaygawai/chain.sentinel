@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export default function LandingPage() {
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
   const socialProofItems = [
     "AAVE V3 LIQUIDATION ENGINE",
@@ -51,7 +49,7 @@ export default function LandingPage() {
 
               {/* Raw Serif Editorial Statement */}
               <p className="font-serif italic text-2xl sm:text-3xl md:text-4xl text-gray-800 max-w-4xl pt-4 leading-tight">
-                "In decentralized finance, by the time a human operator notices liquidation risk, the treasury is already drained."
+                &ldquo;In decentralized finance, by the time a human operator notices liquidation risk, the treasury is already drained.&rdquo;
               </p>
 
               {/* Satoshi Body Description */}
@@ -86,7 +84,7 @@ export default function LandingPage() {
               <div key={idx} className="flex items-center mx-6 font-mono text-xs sm:text-sm font-bold uppercase tracking-widest">
                 <span className="text-electric mr-3">◆</span>
                 <span>{item}</span>
-                <span className="text-gray-600 ml-6">//</span>
+                <span className="text-gray-600 ml-6">{"//"}</span>
               </div>
             ))}
           </div>
@@ -102,7 +100,7 @@ export default function LandingPage() {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-2 border-black pb-8">
               <div>
                 <span className="font-mono text-xs font-black uppercase text-electric tracking-widest block mb-2">
-                  // THREE-TIER DEFENSE PROTOCOL
+                  {"// THREE-TIER DEFENSE PROTOCOL"}
                 </span>
                 <h2 className="font-display text-4xl sm:text-6xl font-black uppercase tracking-tight text-black">
                   Engineered For Total Solvency
@@ -118,8 +116,6 @@ export default function LandingPage() {
               
               {/* CARD 01: Pre-emptive Threat Correlation */}
               <div
-                onMouseEnter={() => setHoveredCard(1)}
-                onMouseLeave={() => setHoveredCard(null)}
                 className="group border-2 border-black p-8 bg-white shadow-hard card-neo-punchy flex flex-col justify-between relative"
               >
                 <div className="space-y-6">
@@ -165,8 +161,6 @@ export default function LandingPage() {
 
               {/* CARD 02: Multi-Agent Governance Arbitration */}
               <div
-                onMouseEnter={() => setHoveredCard(2)}
-                onMouseLeave={() => setHoveredCard(null)}
                 className="group border-2 border-black p-8 bg-white shadow-hard card-neo-punchy flex flex-col justify-between relative lg:translate-y-4"
               >
                 <div className="space-y-6">
@@ -212,8 +206,6 @@ export default function LandingPage() {
 
               {/* CARD 03: ATP-Tokenized Defensive Rebalancing */}
               <div
-                onMouseEnter={() => setHoveredCard(3)}
-                onMouseLeave={() => setHoveredCard(null)}
                 className="group border-2 border-black p-8 bg-white shadow-hard card-neo-punchy flex flex-col justify-between relative"
               >
                 <div className="space-y-6">
@@ -269,7 +261,7 @@ export default function LandingPage() {
             
             <div className="border-b-2 border-black pb-6">
               <span className="font-mono text-xs font-black uppercase text-electric tracking-widest block mb-1">
-                // SYSTEM TELEMETRY & SPECIFICATIONS
+                {"// SYSTEM TELEMETRY & SPECIFICATIONS"}
               </span>
               <h2 className="font-display text-3xl sm:text-5xl font-black uppercase tracking-tight">
                 Asymmetric Architecture

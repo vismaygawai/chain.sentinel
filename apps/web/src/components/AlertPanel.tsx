@@ -80,7 +80,7 @@ export default function AlertPanel({ alerts }: AlertPanelProps) {
       <div className="flex-1 overflow-y-auto divide-y-2 divide-black max-h-[480px]">
         {sortedAlerts.map((alert, idx) => {
           const urgencyConfig = getUrgencyConfig(alert.combinedUrgency);
-          const ts = alert.wwAlert?.timestamp || alert.lsAlert?.timestamp || Date.now();
+          const ts = alert.wwAlert?.timestamp || alert.lsAlert?.timestamp || 0;
 
           return (
             <div

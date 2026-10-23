@@ -1,4 +1,4 @@
-import type { TreasuryScanResult, WalletInfo, LiquidShieldPosition } from "@/types/index";
+import type { TreasuryScanResult, WalletInfo } from "@/types/index";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 

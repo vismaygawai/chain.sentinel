@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
@@ -26,17 +26,12 @@ export default function DashboardPage() {
   const { scan, reset, result, loading, error, step } = useRiskScan();
   const { alerts, isConnected } = useLiveFeed();
 
-  // Load user's registered surveillance workflows on mount (does NOT auto-scan)
-  useEffect(() => {
-    void fetchMonitored();
-  }, []);
-
   const handleClear = () => {
     setAddressInput("");
     reset();
   };
 
-  const fetchMonitored = async () => {
+  const fetchMonitored = useCallback(async () => {
     try {
       const monitored = await getMonitoredWorkflows();
       
@@ -66,7 +61,44 @@ export default function DashboardPage() {
       setWatchedWallets([]);
       setWatchedPositions([]);
     }
-  };
+  }, []);
+
+  // Load user's registered surveillance workflows on mount via subscription lifecycle
+  useEffect(() => {
+    let isSubscribed = true;
+    getMonitoredWorkflows()
+      .then((monitored) => {
+        if (!isSubscribed) return;
+        const uniqueWalletsMap = new Map<string, WalletInfo>();
+        for (const w of monitored) {
+          if (w.address) {
+            uniqueWalletsMap.set(w.address.toLowerCase(), w);
+          }
+        }
+        setWatchedWallets(Array.from(uniqueWalletsMap.values()));
+
+        const uniquePositionsMap = new Map<string, LiquidShieldPosition>();
+        for (const m of monitored) {
+          if (m.ls?.active && m.ls.lastSnapshot && m.address) {
+            uniquePositionsMap.set(m.address.toLowerCase(), {
+              address: m.address,
+              protocol: "aave-v3",
+              snapshots: m.ls.lastSnapshot || [],
+            });
+          }
+        }
+        setWatchedPositions(Array.from(uniquePositionsMap.values()));
+      })
+      .catch(() => {
+        if (!isSubscribed) return;
+        setWatchedWallets([]);
+        setWatchedPositions([]);
+      });
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, []);
 
   const handleScanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

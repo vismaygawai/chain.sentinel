@@ -105,7 +105,7 @@ export default function PositionCard({ position }: PositionCardProps) {
       {/* Interactive Hover-Reveal */}
       <div className="border-t-2 border-black pt-3 max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100 transition-all duration-200 overflow-hidden">
         <span className="font-mono text-[10px] text-electric font-bold block mb-1">
-          // SENTINEL DEFENSIVE RECOMMENDATION
+          {"// SENTINEL DEFENSIVE RECOMMENDATION"}
         </span>
         <p className="font-mono text-xs text-gray-800">
           {hf < 1.3

@@ -48,7 +48,7 @@ export function useLiveFeed() {
                 setTimeout(connect, 5000)
             }
 
-            ws.current.onerror = (err) => {
+            ws.current.onerror = () => {
                 // Only log error if we haven't successfully connected yet 
                 // or if it's a persistent failure.
                 if (ws.current?.readyState !== WebSocket.OPEN) {

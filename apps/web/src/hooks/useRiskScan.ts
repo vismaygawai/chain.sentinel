@@ -49,8 +49,8 @@ export function useRiskScan() {
       setResult(scanResult);
       setStep("COMPLETE");
       return scanResult;
-    } catch (err: any) {
-      const msg = err?.message || "Failed to scan treasury. Verify connection.";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err || "Failed to scan treasury. Verify connection.");
       setError(msg);
       setStep("ERROR");
       return null;
