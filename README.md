@@ -94,7 +94,7 @@ ChainSentinel/
 - WebSocket Event Stream: wss://chain-sentinel-lt6e.onrender.com/ws/feed
 
 ### 4.1 Prerequisites
-- Node.js: 20.x
+- Node.js: 24.x
 - pnpm: >= 9.0.0
 
 ### 4.2 Installation
@@ -175,7 +175,7 @@ Render hosts the autonomous multi-agent background workflows, real-time WebSocke
    Under the "Environment" tab in Render, define the following variables:
    - `PORT`: `10000`
    - `HOST`: `0.0.0.0`
-   - `NODE_VERSION`: `20.x`
+   - `NODE_VERSION`: `24.x`
    - `GEMINI_API_KEY`: Your Google Gemini API key
    - `ALCHEMY_API_KEY`: Your Alchemy API key (for live mempool transaction streaming)
    - `ETH_RPC_URL`: `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}` (or Ethereum RPC endpoint)
@@ -204,7 +204,7 @@ Vercel hosts the responsive Neo-Brutalist dashboard with Turbopack, automated SS
    - Framework Preset: `Next.js`
    - Root Directory: Click "Edit" and choose `apps/web`
    - Production Branch: `master`
-   - Node.js Version: In Project Settings -> General, select `20.x`.
+   - Node.js Version: In Project Settings -> General, select `24.x`.
 
 3. Set Environment Variables:
    Add the following environment variables in the Vercel project configuration:

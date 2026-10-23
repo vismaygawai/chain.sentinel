@@ -1,7 +1,9 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma, alertCorrelator } from '../../../../packages/agents-core/src/index.ts';
 import { getClientCount, getReplayBufferSize } from '../websocket/liveFeed.ts';
 import { atpService } from '../services/atpService.ts';
+import { ScanController } from '../controllers/scanController.ts';
+import type { HealthQuery } from '../types/api.ts';
 
 export async function healthRoutes(server: FastifyInstance) {
   // Root index endpoint
@@ -14,8 +16,11 @@ export async function healthRoutes(server: FastifyInstance) {
     };
   });
 
-  // Primary health check
-  server.get('/health', async () => {
+  // Primary health check (handles both server health check and optional ?address= position health query)
+  server.get<{ Querystring: HealthQuery }>('/health', async (request: FastifyRequest<{ Querystring: HealthQuery }>, reply: FastifyReply) => {
+    if (request.query && request.query.address) {
+      return ScanController.getHealth(request, reply);
+    }
     return {
       status: 'healthy',
       uptime: process.uptime(),

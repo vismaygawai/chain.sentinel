@@ -18,7 +18,7 @@ export async function scanRoutes(server: FastifyInstance) {
 
   // LiquidShield Registration & Health Snapshots
   server.post<{ Body: PositionRegisterRequestBody }>('/position', ScanController.registerPosition);
-  server.get<{ Querystring: HealthQuery }>('/health', ScanController.getHealth);
+  server.get<{ Querystring: HealthQuery }>('/position/health', ScanController.getHealth);
 
   // Monitored Workflows Overview
   server.get('/api/monitored', ScanController.getMonitored);
