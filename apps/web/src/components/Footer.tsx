@@ -45,7 +45,7 @@ export default function Footer() {
               <li><a href="https://devfolio.co/projects/chain-sentinel-f7cf" target="_blank" rel="noreferrer" className="hover:text-electric transition-colors">Devfolio Submission</a></li>
               <li><a href="https://aave.com" target="_blank" rel="noreferrer" className="hover:text-electric transition-colors">Aave Protocol</a></li>
               <li><a href="https://ethereum.org" target="_blank" rel="noreferrer" className="hover:text-electric transition-colors">Ethereum Ecosystem</a></li>
-              <li><a href="https://github.com/vismaygawai/ChainSentinel" target="_blank" rel="noreferrer" className="hover:text-electric transition-colors">GitHub Repository</a></li>
+              <li><a href="https://github.com/vismaygawai/chain.sentinel" target="_blank" rel="noreferrer" className="hover:text-electric transition-colors">GitHub Repository</a></li>
             </ul>
           </div>
         </div>

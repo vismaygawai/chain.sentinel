@@ -43,7 +43,7 @@ export default function Navbar() {
               Operations Center
             </Link>
             <a
-              href="https://github.com/vismaygawai/ChainSentinel"
+              href="https://github.com/vismaygawai/chain.sentinel"
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs font-black uppercase tracking-widest text-black hover:text-electric transition-colors"

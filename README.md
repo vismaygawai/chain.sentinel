@@ -26,7 +26,7 @@ Chain Sentinel introduces an autonomous, preventive defense layer:
 - Team: WWHS?
 - Hackathon: ELECTROTHON 8.0
 - Devfolio Submission: https://devfolio.co/projects/chain-sentinel-f7cf
-- Repository: https://github.com/vismaygawai/ChainSentinel
+- Repository: https://github.com/vismaygawai/chain.sentinel
 
 ---
 
@@ -91,8 +91,8 @@ ChainSentinel/
 ### 4.2 Installation
 ```bash
 # Clone the repository
-git clone https://github.com/vismaygawai/ChainSentinel.git
-cd ChainSentinel
+git clone https://github.com/vismaygawai/chain.sentinel.git
+cd chain.sentinel
 
 # Install workspace dependencies
 pnpm install
