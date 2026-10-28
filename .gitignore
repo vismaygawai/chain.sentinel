@@ -40,3 +40,8 @@ logs/
 tmp/
 temp/
 bin/
+
+# Codebase exports
+*-codebase.txt
+*.codebase.txt
+codebase.txt

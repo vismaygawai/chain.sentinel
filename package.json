@@ -13,6 +13,7 @@
     "typecheck": "pnpm --filter api exec tsc --noEmit && pnpm --filter agents-core exec tsc --noEmit",
     "seed": "pnpm exec tsx scripts/seed-demo-data.ts",
     "deploy:atp": "pnpm exec tsx scripts/deploy-atp.ts",
+    "export:codebase": "pnpm exec tsx scripts/export-codebase.ts",
     "clean": "pnpm -r exec rm -rf node_modules dist .next"
   },
   "keywords": [
