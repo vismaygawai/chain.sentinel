@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
@@ -10,9 +9,15 @@ export function useLiveFeed() {
     const [alerts, setAlerts] = useState<CompoundAlert[]>([])
     const [isConnected, setIsConnected] = useState(false)
     const ws = useRef<WebSocket | null>(null)
+    const reconnectTimeout = useRef<NodeJS.Timeout | null>(null)
 
     useEffect(() => {
         function connect() {
+            if (reconnectTimeout.current) {
+                clearTimeout(reconnectTimeout.current)
+                reconnectTimeout.current = null
+            }
+
             ws.current = new WebSocket(WS_URL)
 
             ws.current.onopen = () => {
@@ -45,7 +50,7 @@ export function useLiveFeed() {
                 console.log('[useLiveFeed] Disconnected')
                 setIsConnected(false)
                 // Attempt reconnect after 5s
-                setTimeout(connect, 5000)
+                reconnectTimeout.current = setTimeout(connect, 5000)
             }
 
             ws.current.onerror = () => {
@@ -61,6 +66,10 @@ export function useLiveFeed() {
         connect()
 
         return () => {
+            if (reconnectTimeout.current) {
+                clearTimeout(reconnectTimeout.current)
+                reconnectTimeout.current = null
+            }
             if (ws.current) {
                 ws.current.onclose = null
                 ws.current.close()

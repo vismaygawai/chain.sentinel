@@ -30,7 +30,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile=false
+        run: pnpm install --frozen-lockfile
 
       - name: Type Check API
         run: pnpm --filter api exec tsc --noEmit

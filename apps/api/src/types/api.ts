@@ -1,5 +1,6 @@
 export interface RiskScanRequestBody {
   address: string;
+  policy?: 'CONSERVATIVE' | 'BALANCED' | 'AGGRESSIVE';
 }
 
 export interface WhaleRegisterRequestBody {

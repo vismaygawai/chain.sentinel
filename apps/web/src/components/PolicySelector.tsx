@@ -40,10 +40,11 @@ export default function PolicySelector({
   currentPolicy = "CONSERVATIVE",
   onSelectPolicy,
 }: PolicySelectorProps) {
-  const [selected, setSelected] = useState<PolicyMode>(currentPolicy);
+  const [internalSelected, setInternalSelected] = useState<PolicyMode>(currentPolicy);
+  const selected = onSelectPolicy ? currentPolicy : internalSelected;
 
   const handleSelect = (mode: PolicyMode) => {
-    setSelected(mode);
+    setInternalSelected(mode);
     if (onSelectPolicy) onSelectPolicy(mode);
   };
 

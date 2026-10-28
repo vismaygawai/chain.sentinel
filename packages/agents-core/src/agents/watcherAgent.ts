@@ -1,15 +1,17 @@
 import { createAgent } from '../lib/agentFactory.ts';
 import { ethers } from 'ethers';
 import type { TreasurySnapshot } from '../types.ts';
+import { withResilientProvider } from '../tools/rpcTools.ts';
+import { getBatchPrices } from '../tools/priceTools.ts';
 
-const PUBLIC_RPCS = [
-  ...(process.env.ALCHEMY_API_KEY && process.env.ALCHEMY_API_KEY !== 'your_alchemy_api_key_here'
-    ? [`https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`]
-    : []),
-  process.env.RPC_URL || 'https://ethereum.publicnode.com',
-  'https://eth.llamarpc.com',
-  'https://cloudflare-eth.com',
-  'https://rpc.ankr.com/eth',
+const ERC20_ABI = ['function balanceOf(address) view returns (uint256)'];
+
+const TOKENS = [
+  { symbol: 'WETH', address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', decimals: 18 },
+  { symbol: 'USDT', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
+  { symbol: 'USDC', address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', decimals: 6 },
+  { symbol: 'DAI',  address: '0x6B175474E89094C44Da98b954EedeAC495271d0F', decimals: 18 },
+  { symbol: 'WBTC', address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', decimals: 8 },
 ];
 
 export const watcherAgent = createAgent({
@@ -19,74 +21,48 @@ export const watcherAgent = createAgent({
 
 export async function watchTreasury(address: string): Promise<TreasurySnapshot> {
   const normalizedAddress = ethers.getAddress(address.toLowerCase());
-  const ethPrice = 2850;
+  const prices = await getBatchPrices(['ETH', ...TOKENS.map((t) => t.symbol)]);
 
-  const TOKENS = [
-    { symbol: 'USDT', address: ethers.getAddress('0xdAC17F958D2ee523a2206206994597C13D831ec7'), decimals: 6 },
-    { symbol: 'USDC', address: ethers.getAddress('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'), decimals: 6 },
-    { symbol: 'DAI',  address: ethers.getAddress('0x6B175474E89094C44Da98b954EedeAC495271d0F'), decimals: 18 },
-    { symbol: 'WBTC', address: ethers.getAddress('0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599'), decimals: 8 },
-  ];
-
-  for (const rpcUrl of PUBLIC_RPCS) {
-    try {
-      const provider = new ethers.JsonRpcProvider(rpcUrl);
+  try {
+    return await withResilientProvider('ethereum', async (provider) => {
       const balanceWei = await provider.getBalance(normalizedAddress);
       const balanceEth = Number(ethers.formatEther(balanceWei));
+      const ethUsd = balanceEth * (prices.ETH || 2850);
 
-      let totalUsdValue = balanceEth * ethPrice;
-      const positions = [
-        {
-          token: 'ETH',
-          balance: balanceEth,
-          usdValue: balanceEth * ethPrice,
-        },
-      ];
+      let totalUsdValue = ethUsd;
+      const positions = [{ token: 'ETH', balance: balanceEth, usdValue: ethUsd }];
 
-      for (const token of TOKENS) {
-        try {
-          const abi = ['function balanceOf(address) view returns (uint256)'];
-          const contract = new ethers.Contract(token.address, abi, provider);
-          const balance: bigint = await (contract as any).balanceOf(normalizedAddress);
-          const formattedBalance = Number(ethers.formatUnits(balance, token.decimals));
-          if (formattedBalance > 0) {
-            const usdValue = token.symbol === 'WBTC' ? formattedBalance * 65000 : formattedBalance;
-            totalUsdValue += usdValue;
-            positions.push({
-              token: token.symbol,
-              balance: formattedBalance,
-              usdValue: usdValue,
-            });
-          }
-        } catch {
-          // Ignore individual token RPC errors
+      const tokenBalances = await Promise.allSettled(
+        TOKENS.map(async (token) => {
+          const contract = new ethers.Contract(token.address, ERC20_ABI, provider);
+          const rawBalance: bigint = await contract.balanceOf(normalizedAddress);
+          const formatted = Number(ethers.formatUnits(rawBalance, token.decimals));
+          return { symbol: token.symbol, balance: formatted };
+        })
+      );
+
+      for (const res of tokenBalances) {
+        if (res.status === 'fulfilled' && res.value.balance > 0) {
+          const price = prices[res.value.symbol] ?? 1.0;
+          const usdValue = res.value.balance * price;
+          totalUsdValue += usdValue;
+          positions.push({
+            token: res.value.symbol,
+            balance: res.value.balance,
+            usdValue,
+          });
         }
       }
 
       console.log(`[watcherAgent] Scanned ${normalizedAddress}: Total=$${totalUsdValue.toFixed(2)} (${positions.length} assets)`);
-
-      return {
-        address: normalizedAddress,
-        totalUsdValue,
-        positions,
-      };
-    } catch {
-      // Try next RPC provider
-      continue;
-    }
+      return { address: normalizedAddress, totalUsdValue, positions };
+    });
+  } catch (err) {
+    console.warn(`[watcherAgent] All RPC endpoints unreachable for ${normalizedAddress}:`, err);
+    return {
+      address: normalizedAddress,
+      totalUsdValue: 0,
+      positions: [{ token: 'ETH', balance: 0, usdValue: 0 }],
+    };
   }
-
-  // If all RPC providers failed, return zero-balance snapshot
-  console.warn(`[watcherAgent] All RPC endpoints unreachable for ${normalizedAddress}`);
-  return {
-    address: normalizedAddress,
-    totalUsdValue: 0,
-    positions: [
-      {
-        token: 'ETH',
-        balance: 0,
-        usdValue: 0,
-      },
-    ],
-  };
 }

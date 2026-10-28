@@ -14,13 +14,14 @@
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",
     "@ai-sdk/openai": "^3.0.41",
-    "@iqai/adk": "^0.5.9",
+    "@iqai/adk": "^0.8.1",
     "ai": "^6.0.116",
     "dotenv": "^17.2.3",
     "ethers": "^6.16.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {
+    "@types/node": "^22.10.1",
     "tsx": "^4.7.0",
     "typescript": "^5.9.3"
   }

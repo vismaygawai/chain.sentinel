@@ -78,14 +78,14 @@ export const DEMO_PRESET_TREASURIES: Record<string, TreasuryScanResult> = {
   },
 };
 
-export async function runRiskScan(address: string): Promise<TreasuryScanResult> {
+export async function runRiskScan(address: string, policy?: string): Promise<TreasuryScanResult> {
   const normalized = address.toLowerCase();
 
   try {
     const res = await fetch(`${API_BASE}/api/risk-scan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address }),
+      body: JSON.stringify({ address, policy }),
     });
     if (res.ok) {
       const data = await res.json();

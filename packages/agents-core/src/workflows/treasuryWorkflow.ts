@@ -8,11 +8,11 @@ import { enforceGovernance, initGovernanceAgent } from "../agents/governanceAgen
  * Orchestrates the complete on-chain treasury analysis and protection pipeline
  */
 
-export async function runTreasuryWorkflow(address: string) {
+export async function runTreasuryWorkflow(address: string, policy?: string) {
   try {
     console.log("🚀 Starting Treasury Governance Workflow (ADK-driven)");
 
-    // ✅ Initialize all ADK agents
+    // Initialize all ADK agents
     await initRiskAgent();
     await initPlannerAgent();
     await initGovernanceAgent();
@@ -24,7 +24,7 @@ export async function runTreasuryWorkflow(address: string) {
 
     // 2. Risk Analysis (ADK Agent)
     console.log("2️⃣  Analyzing risk with ADK Risk Agent...");
-    const risk = await analyzeRisk(snapshot);
+    const risk = await analyzeRisk(snapshot, policy);
     console.log(`✅ Risk Level: ${risk.level} (Score: ${risk.score}/100)`);
 
     // 3. Protection Planning (ADK Agent)
@@ -47,12 +47,23 @@ export async function runTreasuryWorkflow(address: string) {
       snapshot,
       risk,
       plan,
-      governance
+      governance,
+      decision: governance
     };
   } catch (err) {
     console.error("❌ Workflow error:", err);
 
-    // ✅ Emergency fallback (never breaks)
+    const fallbackGovernance = {
+      approved: false,
+      reason: "Emergency shutdown due to system failure.",
+      enforcedActions: [
+        {
+          type: "ALERT",
+          message: "Automation disabled due to internal error."
+        }
+      ]
+    };
+
     return {
       snapshot: null,
       risk: {
@@ -68,16 +79,8 @@ export async function runTreasuryWorkflow(address: string) {
           }
         ]
       },
-      governance: {
-        approved: false,
-        reason: "Emergency shutdown due to system failure.",
-        enforcedActions: [
-          {
-            type: "ALERT",
-            message: "Automation disabled due to internal error."
-          }
-        ]
-      }
+      governance: fallbackGovernance,
+      decision: fallbackGovernance
     };
   }
 }

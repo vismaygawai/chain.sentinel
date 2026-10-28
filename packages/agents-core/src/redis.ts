@@ -1,14 +1,29 @@
-
 import { EventEmitter } from 'events';
 
 class LocalRedisMock extends EventEmitter {
     private storage: Map<string, any> = new Map();
+    private timers: Map<string, NodeJS.Timeout> = new Map();
 
     async set(key: string, value: any, mode?: string, duration?: number, flag?: string) {
+        if (flag === 'NX' && this.storage.has(key)) {
+            return null;
+        }
+        if (flag === 'XX' && !this.storage.has(key)) {
+            return null;
+        }
+        if (this.timers.has(key)) {
+            clearTimeout(this.timers.get(key)!);
+            this.timers.delete(key);
+        }
         this.storage.set(key, value);
-        if (mode === 'EX' || mode === 'PX') {
-            const ttl = mode === 'EX' ? duration! * 1000 : duration!;
-            setTimeout(() => this.storage.delete(key), ttl);
+        if ((mode === 'EX' || mode === 'PX') && duration) {
+            const ttl = mode === 'EX' ? duration * 1000 : duration;
+            const timer = setTimeout(() => {
+                this.storage.delete(key);
+                this.timers.delete(key);
+            }, ttl);
+            timer.unref?.();
+            this.timers.set(key, timer);
         }
         return 'OK';
     }
@@ -22,8 +37,17 @@ class LocalRedisMock extends EventEmitter {
     }
 
     async del(...keys: string[]) {
-        keys.forEach(k => this.storage.delete(k));
-        return keys.length;
+        let count = 0;
+        for (const k of keys) {
+            if (this.timers.has(k)) {
+                clearTimeout(this.timers.get(k)!);
+                this.timers.delete(k);
+            }
+            if (this.storage.delete(k)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     async lpush(key: string, ...values: string[]) {
@@ -40,7 +64,8 @@ class LocalRedisMock extends EventEmitter {
     }
 
     async keys(pattern: string) {
-        const regex = new RegExp(pattern.replace('*', '.*'));
+        const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+        const regex = new RegExp(`^${escaped}$`);
         return Array.from(this.storage.keys()).filter(k => regex.test(k));
     }
 
@@ -56,6 +81,11 @@ class LocalRedisMock extends EventEmitter {
     }
 
     async quit() {
+        for (const timer of this.timers.values()) {
+            clearTimeout(timer);
+        }
+        this.timers.clear();
+        this.storage.clear();
         return 'OK';
     }
 }

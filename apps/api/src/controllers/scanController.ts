@@ -14,13 +14,13 @@ export class ScanController {
     request: FastifyRequest<{ Body: RiskScanRequestBody }>,
     reply: FastifyReply
   ) {
-    const { address } = request.body || {};
+    const { address, policy } = request.body || {};
     if (!address || !isAddress(address)) {
       return reply.status(400).send({ error: 'A valid EVM Ethereum address is required' });
     }
 
     try {
-      const result = await treasuryService.scanTreasury(address);
+      const result = await treasuryService.scanTreasury(address, policy);
       return reply.send(result);
     } catch (err: any) {
       request.log.error(err);

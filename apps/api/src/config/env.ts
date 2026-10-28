@@ -24,10 +24,11 @@ export const ENV = {
   PORT: Number(process.env.PORT || 3001),
   HOST: process.env.HOST || '0.0.0.0',
   NODE_ENV: process.env.NODE_ENV || 'development',
-  RPC_URL: process.env.RPC_URL || 'https://ethereum.publicnode.com',
+  RPC_URL: process.env.RPC_URL || process.env.ETH_RPC_URL || 'https://ethereum.publicnode.com',
   ALCHEMY_API_KEY: process.env.ALCHEMY_API_KEY || '',
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
-  ATP_ENDPOINT: process.env.ATP_ENDPOINT || 'https://api.atp.network/v1',
+  ATP_ENDPOINT: process.env.ATP_ENDPOINT || process.env.ATP_API_URL || 'https://api.atp.network/v1',
+  ATP_API_KEY: process.env.ATP_API_KEY || '',
   ATP_AGENT_ID: process.env.ATP_AGENT_ID || 'chain-sentinel-v1',
   CORS_ORIGIN: process.env.CORS_ORIGIN || '*',
 } as const;

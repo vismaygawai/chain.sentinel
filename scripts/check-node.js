@@ -2,7 +2,7 @@
 /* Check Node.js major version and pnpm user agent during install/build
    Exits non-zero if Node major < 20 to fail fast on incompatible builders.
 */
-const { execSync } = require('child_process');
+import { execSync } from 'node:child_process';
 
 const major = Number(process.versions.node.split('.')[0]);
 if (Number.isNaN(major)) {
@@ -11,7 +11,7 @@ if (Number.isNaN(major)) {
 }
 if (major < 20) {
   console.error(`Unsupported Node.js version ${process.version}. Node >= 20 is required.`);
-  console.error('Please set your platform/build Node version to 20.x (e.g., Vercel Project Settings → Node.js Version).');
+  console.error('Please set your platform/build Node version to 24.x (e.g., Vercel Project Settings → Node.js Version).');
   process.exit(1);
 }
 
@@ -25,6 +25,6 @@ console.log(`Node.js check passed: ${process.version}`);
 try {
   const pnpmV = execSync('pnpm -v', { stdio: 'pipe' }).toString().trim();
   console.log(`pnpm detected: ${pnpmV}`);
-} catch (e) {
+} catch {
   // non-fatal
 }

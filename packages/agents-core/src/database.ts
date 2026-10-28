@@ -1,7 +1,10 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const DB_PATH = path.resolve(process.cwd(), 'local_db.json');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DB_PATH = path.resolve(__dirname, '../../../apps/api/local_db.json');
 
 interface DBData {
   wallets: any[];

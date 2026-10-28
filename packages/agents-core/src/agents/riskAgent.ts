@@ -1,98 +1,155 @@
-import { createAgent } from '../lib/agentFactory.ts'
-import type { RiskTier } from '../queues/scanQueue.ts'
-import { classifyTier } from '../queues/scanQueue.ts'
-import type { RiskResult } from '../types.ts'
+import { createAgent } from '../lib/agentFactory.ts';
+import type { RiskTier } from '../queues/scanQueue.ts';
+import { classifyTier } from '../queues/scanQueue.ts';
+import type { RiskResult, TreasurySnapshot } from '../types.ts';
+import { fetchAaveUserAccountData } from '../tools/defiTools.ts';
+import { threatVectorStore } from '../memory/vectorStore.ts';
+import { getPolicy } from '../policies/index.ts';
 
 export interface RiskAssessment extends RiskResult {
-    address: string
-    healthFactor: number
-    tier: RiskTier
-    score: number
-    narrative: string
-    source: 'deterministic' | 'llm-enriched'
+  address: string;
+  healthFactor: number;
+  tier: RiskTier;
+  score: number;
+  narrative: string;
+  source: 'deterministic' | 'llm-enriched';
 }
 
-export function deterministicScore(
-    address: string,
-    healthFactor: number,
-): RiskAssessment {
-    const tier = classifyTier(healthFactor)
-    let score: number
-    if (healthFactor < 1.0) score = 100
-    else if (healthFactor < 1.1) score = 95
-    else if (healthFactor < 1.3) score = 75
-    else if (healthFactor < 2.0) score = 40
-    else score = 10
+export function deterministicScore(address: string, healthFactor: number): RiskAssessment {
+  const tier = classifyTier(healthFactor);
+  let score: number;
+  if (healthFactor < 1.0) score = 100;
+  else if (healthFactor < 1.1) score = 95;
+  else if (healthFactor < 1.3) score = 75;
+  else if (healthFactor < 2.0) score = 40;
+  else score = 15;
 
-    const narrative = `Health factor ${healthFactor.toFixed(4)} -> tier ${tier}, risk score ${score}/100`
+  const level: 'LOW' | 'MEDIUM' | 'HIGH' =
+    tier === 'CRITICAL' || tier === 'DANGER' ? 'HIGH' : tier === 'WARNING' ? 'MEDIUM' : 'LOW';
 
-    const level: 'LOW' | 'MEDIUM' | 'HIGH' =
-        tier === 'CRITICAL' || tier === 'DANGER' ? 'HIGH' : tier === 'WARNING' ? 'MEDIUM' : 'LOW'
+  const issues: string[] = [];
+  if (healthFactor < 1.3) {
+    issues.push(`Low Aave V3 health factor: ${healthFactor.toFixed(2)} (liquidation threshold at 1.00)`);
+  }
 
-    const issues: string[] = []
-    if (healthFactor < 1.3) issues.push(`Low health factor: ${healthFactor.toFixed(2)}`)
+  return {
+    address,
+    healthFactor,
+    tier,
+    score,
+    narrative: `Health factor ${healthFactor.toFixed(2)} classified as ${tier} (${score}/100 risk score).`,
+    source: 'deterministic',
+    level,
+    issues,
+  };
+}
 
+export async function llmEnrich(assessment: RiskAssessment): Promise<RiskAssessment> {
+  if (assessment.healthFactor > 0 && assessment.healthFactor < 1.1) {
     return {
-        address,
-        healthFactor,
-        tier,
-        score,
-        narrative,
-        source: 'deterministic',
-        level,
-        issues,
-    }
-}
+      ...assessment,
+      narrative: `CRITICAL: Health factor at ${assessment.healthFactor.toFixed(4)} — immediate debt repayment required.`,
+    };
+  }
+  const similar = threatVectorStore.querySimilar(assessment.narrative, 1)[0];
+  const enrichedNarrative =
+    similar && similar.similarity > 0.25
+      ? `${assessment.narrative} Pattern matches ${similar.incident.protocol} (${similar.incident.type}): ${similar.incident.recommendedMitigation}.`
+      : assessment.narrative;
 
-export async function llmEnrich(
-    assessment: RiskAssessment,
-): Promise<RiskAssessment> {
-    if (assessment.healthFactor < 1.1) {
-        return {
-            ...assessment,
-            narrative: `CRITICAL: HF at ${assessment.healthFactor.toFixed(4)} — immediate action required. LLM skipped.`,
-        }
-    }
-    console.log(`[riskAgent] llmEnrich: ${assessment.address} HF=${assessment.healthFactor} — LLM enrichment active`)
-    return { ...assessment, source: 'llm-enriched' }
+  return { ...assessment, narrative: enrichedNarrative, source: 'llm-enriched' };
 }
 
 export async function assessRisk(
-    addressOrSnapshot: string | any,
-    healthFactor?: number,
+  addressOrSnapshot: string | TreasurySnapshot,
+  healthFactorOrPolicy?: number | string
 ): Promise<RiskAssessment> {
-    if (typeof addressOrSnapshot === 'object' && addressOrSnapshot.totalUsdValue !== undefined) {
-        // Handle Treasury Snapshot
-        const snapshot = addressOrSnapshot;
-        const score = snapshot.totalUsdValue > 1000000 ? 80 : 20;
-        const level: 'LOW' | 'MEDIUM' | 'HIGH' = score > 70 ? 'HIGH' : score > 40 ? 'MEDIUM' : 'LOW';
-        const issues: string[] = [];
-        if (level === 'HIGH') issues.push('Heavy treasury concentration');
+  if (typeof addressOrSnapshot === 'object' && addressOrSnapshot.totalUsdValue !== undefined) {
+    const snapshot = addressOrSnapshot;
+    const policyName = typeof healthFactorOrPolicy === 'string' ? healthFactorOrPolicy : 'CONSERVATIVE';
+    const policy = getPolicy(policyName);
 
-        return {
-            address: snapshot.address,
-            healthFactor: 0,
-            tier: 'SAFE',
-            score: score,
-            narrative: `Treasury value $${snapshot.totalUsdValue.toFixed(2)} analyzed. Exposure within normal bounds.`,
-            source: 'deterministic',
-            level,
-            issues,
-        };
+    let hf = 2.85;
+    let hasDebt = false;
+    try {
+      const aaveData = await fetchAaveUserAccountData(snapshot.address);
+      hasDebt = aaveData.totalDebtUSD > 0;
+      if (hasDebt) hf = aaveData.healthFactor;
+    } catch {
+      // If Aave account data fails to fetch, keep default safe buffer
     }
-    
-    // Original Aave logic
-    const base = deterministicScore(addressOrSnapshot, healthFactor || 2.0)
-    return llmEnrich(base)
+
+    // Calculate max single-asset concentration
+    let maxAssetPct = 0;
+    let dominantToken = 'ETH';
+    if (snapshot.totalUsdValue > 0) {
+      for (const pos of snapshot.positions) {
+        const pct = (pos.usdValue / snapshot.totalUsdValue) * 100;
+        if (pct > maxAssetPct) {
+          maxAssetPct = pct;
+          dominantToken = pos.token;
+        }
+      }
+    }
+
+    const issues: string[] = [];
+    let score = 15;
+
+    if (hasDebt && hf < policy.minHealthFactor) {
+      score += hf < 1.15 ? 65 : hf < 1.35 ? 45 : 25;
+      issues.push(
+        `Health factor ${hf.toFixed(2)} is below ${policy.name} policy minimum (${policy.minHealthFactor.toFixed(2)})`
+      );
+    }
+
+    if (snapshot.totalUsdValue > 0 && maxAssetPct > policy.maxSingleAssetConcentrationPct) {
+      const stableTokens = ['USDT', 'USDC', 'DAI'];
+      const concentrationPenalty = stableTokens.includes(dominantToken) ? 10 : 25;
+      score += concentrationPenalty;
+      issues.push(
+        `${dominantToken} concentration (${maxAssetPct.toFixed(1)}%) exceeds ${policy.name} limit (${policy.maxSingleAssetConcentrationPct}%)`
+      );
+    }
+
+    score = Math.min(100, Math.max(5, score));
+    const level: 'LOW' | 'MEDIUM' | 'HIGH' = score >= 70 ? 'HIGH' : score >= 40 ? 'MEDIUM' : 'LOW';
+    const tier: RiskTier =
+      score >= 85 ? 'CRITICAL' : score >= 70 ? 'DANGER' : score >= 40 ? 'WARNING' : 'SAFE';
+
+    const base: RiskAssessment = {
+      address: snapshot.address,
+      healthFactor: hf,
+      tier,
+      score,
+      narrative:
+        issues.length > 0
+          ? `Detected ${issues.length} policy violation(s) under ${policy.name} profile.`
+          : `Treasury reserves ($${snapshot.totalUsdValue.toLocaleString()}) comply with ${policy.name} risk bounds.`,
+      source: 'deterministic',
+      level,
+      issues,
+    };
+
+    return llmEnrich(base);
+  }
+
+  const targetAddress =
+    typeof addressOrSnapshot === 'string'
+      ? addressOrSnapshot
+      : (addressOrSnapshot as TreasurySnapshot).address || '';
+
+  const base = deterministicScore(
+    targetAddress,
+    typeof healthFactorOrPolicy === 'number' ? healthFactorOrPolicy : 2.0
+  );
+  return llmEnrich(base);
 }
 
-// Alias for legacy treasury workflow support
 export { assessRisk as analyzeRisk };
-export async function initRiskAgent() {
-    console.log("Risk Agent ready (EH baseline)");
-}
+export async function initRiskAgent() {}
 
 export const riskAgent = createAgent({
-    name: 'ls_risk',
-    instructions: 'You are the LiquidShield Risk Agent. Step 1 (sync, <100ms): Run deterministicScore() to classify risk from health factor. Step 2 (async): Call llmEnrich() to add narrative reasoning. If HF < 1.1 (CRITICAL): skip LLM entirely — fire the assessment immediately. Never delay a CRITICAL alert for LLM enrichment.',
-})
+  name: 'ls_risk',
+  instructions:
+    'You are the LiquidShield Risk Agent. Run deterministicScore() to classify risk from health factor and concentration, then enrich with threat vector similarity.',
+});

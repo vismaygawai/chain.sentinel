@@ -1,4 +1,3 @@
-import { AgentBuilder } from "@iqai/adk";
 import { createAgent } from '../lib/agentFactory.ts';
 import type { RiskResult, ProtectionPlan } from "../types.ts";
 import { callQwenLLM, extractJSON } from "../tools/treasuryTools.ts";
@@ -14,7 +13,6 @@ let plannerRunner: any = null;
 export async function initPlannerAgent() {
   if (plannerAgent && plannerRunner) return;
 
-  // ✅ Use common factory (Switching to Gemini as requested)
   const built = createAgent({
     name: "protection_planner_agent",
     instructions: `You are a DeFi treasury protection strategist.
@@ -43,7 +41,7 @@ export async function generateProtectionPlan(risk: RiskResult): Promise<Protecti
       await initPlannerAgent();
     }
 
-    // ✅ Use ADK runner with specific protection strategy prompt
+    // Use ADK runner with specific protection strategy prompt
     const prompt = `TASK: Design protection strategy based on detected risks.
 
 CURRENT RISK ASSESSMENT:
@@ -64,7 +62,24 @@ ACTION TYPES:
 OUTPUT ONLY THIS JSON:
 {"actions":[{"type":"ALERT"|"REDUCE"|"DIVERSIFY","message":"specific action description"}]}`;
 
-    const response = await callQwenLLM(prompt);
+    let response = '';
+    if (process.env.GEMINI_API_KEY && (plannerAgent || plannerRunner)) {
+      try {
+        if (typeof plannerAgent?.run === 'function') {
+          const res = await plannerAgent.run(prompt);
+          response = typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
+        } else if (typeof plannerRunner?.run === 'function') {
+          const res = await plannerRunner.run(prompt);
+          response = typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
+        }
+      } catch (adkErr) {
+        console.warn("⚠️ ADK agent execution failed, falling back to Qwen:", adkErr);
+      }
+    }
+
+    if (!response) {
+      response = await callQwenLLM(prompt);
+    }
     console.log("[DEBUG] Raw Planner LLM response:", response);
 
     const parsed = extractJSON<ProtectionPlan>(response);
@@ -84,22 +99,44 @@ OUTPUT ONLY THIS JSON:
     console.warn("⚠️ LLM planner failed, using deterministic fallback:", err);
   }
 
-  // ✅ ADK-style deterministic fallback
-  const actions: Array<{ type: "ALERT" | "REDUCE" | "DIVERSIFY"; message: string }> = [];
-
+  // Deterministic fallback based on risk level
+  console.log("✅ Protection plan from deterministic fallback");
   if (risk.level === "HIGH") {
-    actions.push({ type: "ALERT", message: "Immediate risk detected. Manual review required." });
-    actions.push({ type: "REDUCE", message: "Reduce high-risk exposure positions immediately." });
+    return {
+      actions: [
+        {
+          type: "ALERT",
+          message: "High risk exposure detected. Immediate review required."
+        },
+        {
+          type: "REDUCE",
+          message: "Reduce concentration in top asset to under 50% of treasury."
+        }
+      ]
+    };
   }
 
   if (risk.level === "MEDIUM") {
-    actions.push({ type: "DIVERSIFY", message: "Diversify treasury across multiple stable assets." });
+    return {
+      actions: [
+        {
+          type: "DIVERSIFY",
+          message: "Consider reallocating 20% into stable assets (USDC, DAI)."
+        },
+        {
+          type: "ALERT",
+          message: "Treasury risk is moderate. Monitor market volatility."
+        }
+      ]
+    };
   }
 
-  if ((risk.level === "LOW" || risk.tier === "SAFE")) {
-    actions.push({ type: "ALERT", message: "Treasury is stable. Monitor regularly." });
-  }
-
-  console.log("✅ Protection plan from deterministic fallback");
-  return { actions };
+  return {
+    actions: [
+      {
+        type: "ALERT",
+        message: "Treasury is stable. Monitor regularly."
+      }
+    ]
+  };
 }

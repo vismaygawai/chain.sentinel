@@ -1,20 +1,18 @@
-'use client';
-
-import type { WalletInfo } from '@/types';
+import type { WalletInfo } from '@/types/index';
 
 interface WalletCardProps {
   wallet: WalletInfo;
 }
 
 function truncateAddress(address: string): string {
+  if (!address) return '';
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
 function formatTime(timestamp: number | null): string {
   if (!timestamp) return 'No alerts yet';
   const diffMs = Date.now() - timestamp;
-  const diffMin = Math.floor(diffMs / 60_000);
-
+  const diffMin = Math.floor(diffMs / 60000);
   if (diffMin < 1) return 'Just now';
   if (diffMin < 60) return `${diffMin}m ago`;
   if (diffMin < 1440) return `${Math.floor(diffMin / 60)}h ago`;
@@ -35,7 +33,10 @@ function getIntentConfig(intent: string): { label: string; className: string } {
 }
 
 export default function WalletCard({ wallet }: WalletCardProps) {
-  const intentConfig = getIntentConfig(wallet.intent || 'Active');
+  const intent = wallet.intent || wallet.ww?.lastAlert?.intent || 'Active';
+  const label = wallet.label || wallet.ww?.lastAlert?.label || 'Whale Multisig';
+  const lastAlertTime = wallet.lastAlertTime || wallet.ww?.lastAlert?.timestamp || null;
+  const intentConfig = getIntentConfig(intent);
 
   return (
     <div className="group bg-white border-2 border-black p-6 flex flex-col justify-between gap-5 transition-all hover:shadow-hard-lg shadow-hard hover:-translate-y-1 relative">
@@ -54,11 +55,11 @@ export default function WalletCard({ wallet }: WalletCardProps) {
       <div className="space-y-1 font-mono text-xs">
         <div className="flex justify-between border-b border-gray-200 pb-1">
           <span className="text-gray-500">Classification:</span>
-          <span className="font-bold">{wallet.label || 'Whale Multisig'}</span>
+          <span className="font-bold">{label}</span>
         </div>
         <div className="flex justify-between border-b border-gray-200 pb-1 pt-1">
           <span className="text-gray-500">Last Activity:</span>
-          <span className="font-bold">{formatTime(wallet.lastAlertTime || null)}</span>
+          <span className="font-bold">{formatTime(lastAlertTime)}</span>
         </div>
         <div className="flex justify-between pt-1">
           <span className="text-gray-500">Mempool Stream:</span>

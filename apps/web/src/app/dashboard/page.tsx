@@ -103,14 +103,14 @@ export default function DashboardPage() {
   const handleScanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (addressInput.trim()) {
-      await scan(addressInput.trim());
+      await scan(addressInput.trim(), activePolicy);
       await fetchMonitored();
     }
   };
 
   const loadPreset = (presetAddr: string) => {
     setAddressInput(presetAddr);
-    void scan(presetAddr);
+    void scan(presetAddr, activePolicy);
   };
 
   const totalMonitoredVal = result?.snapshot?.totalUsdValue !== undefined ? result.snapshot.totalUsdValue : 0;
@@ -299,7 +299,12 @@ export default function DashboardPage() {
           />
           <PolicySelector
             currentPolicy={activePolicy}
-            onSelectPolicy={(p) => setActivePolicy(p)}
+            onSelectPolicy={(p) => {
+              setActivePolicy(p);
+              if (addressInput.trim() && result) {
+                void scan(addressInput.trim(), p);
+              }
+            }}
           />
         </div>
 

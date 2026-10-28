@@ -17,7 +17,7 @@ export function useRiskScan() {
   const [result, setResult] = useState<TreasuryScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const scan = useCallback(async (address: string): Promise<TreasuryScanResult | null> => {
+  const scan = useCallback(async (address: string, policy?: string): Promise<TreasuryScanResult | null> => {
     if (!address.trim()) {
       setError("Please enter a valid Ethereum treasury or wallet address");
       return null;
@@ -28,23 +28,25 @@ export function useRiskScan() {
     setStep("FETCHING_BALANCES");
 
     try {
-      // Step 1: Query On-Chain Balances & Positions
-      await new Promise((r) => setTimeout(r, 400));
-      setStep("ANALYZING_RISK");
+      // Start the actual network scan immediately
+      const scanPromise = runRiskScan(address, policy);
 
-      // Step 2: Multi-Agent Risk Evaluation
-      await new Promise((r) => setTimeout(r, 400));
-      setStep("GENERATING_PLAN");
+      // Fast UI progression while awaiting network response
+      const t1 = setTimeout(() => setStep("ANALYZING_RISK"), 150);
+      const t2 = setTimeout(() => setStep("GENERATING_PLAN"), 350);
+      const t3 = setTimeout(() => setStep("ENFORCING_GOVERNANCE"), 550);
 
-      // Step 3: Mitigation Strategy
-      await new Promise((r) => setTimeout(r, 400));
-      setStep("ENFORCING_GOVERNANCE");
+      const scanResult = await scanPromise;
 
-      const scanResult = await runRiskScan(address);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
 
-      // Register background monitoring
-      void registerWhaleWatcher(address);
-      void registerLiquidShield(address);
+      // Register background monitoring in parallel
+      void Promise.allSettled([
+        registerWhaleWatcher(address),
+        registerLiquidShield(address),
+      ]);
 
       setResult(scanResult);
       setStep("COMPLETE");

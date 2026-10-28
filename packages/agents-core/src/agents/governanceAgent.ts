@@ -13,7 +13,6 @@ let governanceRunner: any = null;
 export async function initGovernanceAgent() {
   if (governanceAgent && governanceRunner) return;
 
-  // ✅ Use common factory (Switching to Gemini as requested)
   const built = createAgent({
     name: "governance_enforcement_agent",
     instructions: `You are the final safety authority for Chain Sentinel.
@@ -44,7 +43,7 @@ export async function enforceGovernance(
 ): Promise<GovernanceDecision> {
   const { risk, plan, totalUsdValue } = input;
 
-  // 🚨 HARD SAFETY RULE: Never override via LLM
+  // HARD SAFETY RULE: Never override via LLM if HIGH risk on large treasury
   if (risk.level === "HIGH" && totalUsdValue > 1_000_000) {
     console.log("🚨 Hard safety rule triggered: HIGH risk + large treasury");
     return {
@@ -65,7 +64,6 @@ export async function enforceGovernance(
       await initGovernanceAgent();
     }
 
-    // ✅ Use ADK runner for final governance enforcement decision
     const prompt = `TASK: Make final safety approval decision for treasury.
 
 RISK SUMMARY:
@@ -85,7 +83,24 @@ ENFORCEMENT RULES:
 OUTPUT ONLY THIS JSON:
 {"approved":true|false,"reason":"brief explanation of decision","enforcedActions":[{"type":"ALERT"|"REDUCE"|"DIVERSIFY","message":"action to enforce"}]}`;
 
-    const response = await callQwenLLM(prompt);
+    let response = '';
+    if (process.env.GEMINI_API_KEY && (governanceAgent || governanceRunner)) {
+      try {
+        if (typeof governanceAgent?.run === 'function') {
+          const res = await governanceAgent.run(prompt);
+          response = typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
+        } else if (typeof governanceRunner?.run === 'function') {
+          const res = await governanceRunner.run(prompt);
+          response = typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
+        }
+      } catch (adkErr) {
+        console.warn("⚠️ ADK governance execution failed, falling back to Qwen:", adkErr);
+      }
+    }
+
+    if (!response) {
+      response = await callQwenLLM(prompt);
+    }
     console.log("[DEBUG] Raw Governance LLM response:", response);
 
     const parsed = extractJSON<GovernanceDecision>(response);
@@ -106,7 +121,7 @@ OUTPUT ONLY THIS JSON:
     console.warn("⚠️ LLM governance failed, using deterministic fallback:", err);
   }
 
-  // ✅ ADK-style deterministic fallback
+  // ADK-style deterministic fallback
   if (risk.level === "MEDIUM") {
     console.log("✅ Governance decision from deterministic rule (MEDIUM risk)");
     return {
@@ -116,7 +131,7 @@ OUTPUT ONLY THIS JSON:
     };
   }
 
-  if ((risk.level === "LOW" || risk.tier === "SAFE")) {
+  if (risk.level === "LOW" || risk.tier === "SAFE") {
     console.log("✅ Governance decision from deterministic rule (LOW risk)");
     return {
       approved: true,

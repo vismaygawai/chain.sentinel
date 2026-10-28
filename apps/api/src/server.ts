@@ -18,7 +18,7 @@ export async function buildServer(): Promise<FastifyInstance> {
 
   // CORS
   await server.register(cors, {
-    origin: '*',
+    origin: ENV.CORS_ORIGIN === '*' ? true : ENV.CORS_ORIGIN.split(',').map((o) => o.trim()),
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   });
 

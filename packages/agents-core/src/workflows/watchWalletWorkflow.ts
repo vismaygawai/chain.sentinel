@@ -1,19 +1,19 @@
-import type { WhaleScanResult, WalletProfile } from '../types.ts'
-import { startScanner, onLargeTransaction } from '../agents/scannerAgent.ts'
-import { classifyIntent } from '../agents/intentAgent.ts'
-import { formatAlert } from '../agents/alertAgent.ts'
-import { evaluateAlert } from '../agents/wwGovernanceAgent.ts'
-import * as alertCorrelator from '../correlation/alertCorrelator.ts'
-import * as walletHistory from '../memory/walletHistory.ts'
+import type { WhaleScanResult, WalletProfile } from '../types.ts';
+import { startScanner, onLargeTransaction } from '../agents/scannerAgent.ts';
+import { classifyIntent } from '../agents/intentAgent.ts';
+import { formatAlert } from '../agents/alertAgent.ts';
+import { evaluateAlert } from '../agents/wwGovernanceAgent.ts';
+import * as alertCorrelator from '../correlation/alertCorrelator.ts';
+import * as walletHistory from '../memory/walletHistory.ts';
 
-const registeredWallets = new Set<string>()
-const walletProfiles = new Map<string, WalletProfile>()
+const registeredWallets = new Set<string>();
+const walletProfiles = new Map<string, WalletProfile>();
 
 export async function registerWallet(address: string): Promise<void> {
-    const key = address.toLowerCase()
-    if (registeredWallets.has(key)) return
-    registeredWallets.add(key)
-    walletProfiles.set(key, { address: key })
+    const key = address.toLowerCase();
+    if (registeredWallets.has(key)) return;
+    registeredWallets.add(key);
+    walletProfiles.set(key, { address: key });
     
     // Persist to local DB shim if not already there
     import('../index.ts').then(async ({ prisma }) => {
@@ -24,43 +24,43 @@ export async function registerWallet(address: string): Promise<void> {
         }
     });
 
-    await walletHistory.backfill(address)
-    console.log(`[watchWalletWorkflow] Wallet registered and backfilled: ${key}`)
+    await walletHistory.backfill(address);
+    console.log(`[watchWalletWorkflow] Wallet registered and backfilled: ${key}`);
 }
 
 export async function processTransaction(scan: WhaleScanResult): Promise<void> {
-    const addr = scan.address.toLowerCase()
+    const addr = scan.address.toLowerCase();
+    await walletHistory.append(scan.address, scan);
     if (!registeredWallets.has(addr)) {
-        await registerWallet(scan.address)
+        await registerWallet(scan.address);
     }
-    const intentResult = await classifyIntent(scan.address)
-    const alert = await formatAlert(scan, intentResult.intent, intentResult.label)
-    if (!alert) return
-    const confidence = intentResult.source === 'local' ? 0.9 : 0.5
-    const decision = await evaluateAlert(scan.address, confidence)
+    const intentResult = await classifyIntent(scan.address);
+    const alert = await formatAlert(scan, intentResult.intent, intentResult.label);
+    if (!alert) return;
+    const confidence = intentResult.source === 'local' ? 0.9 : 0.75;
+    const decision = await evaluateAlert(scan.address, confidence);
     if (!decision.allowed) {
-        console.log(`[watchWalletWorkflow] Alert rejected: ${decision.reason}`)
-        return
+        console.log(`[watchWalletWorkflow] Alert rejected: ${decision.reason}`);
+        return;
     }
-    alertCorrelator.ingestWhaleAlert(scan)
-    const profile = walletProfiles.get(addr)
+    alertCorrelator.ingestWhaleAlert(scan);
+    const profile = walletProfiles.get(addr);
     if (profile) {
-        profile.lastWWSnapshot = scan
-        walletProfiles.set(addr, profile)
+        profile.lastWWSnapshot = scan;
+        walletProfiles.set(addr, profile);
     }
-    console.log(`[watchWalletWorkflow] Alert processed: ${scan.txHash} (${intentResult.intent})`)
+    console.log(`[watchWalletWorkflow] Alert processed: ${scan.txHash} (${intentResult.intent})`);
+}
+
+export function getWalletProfile(address: string): WalletProfile | undefined {
+    return walletProfiles.get(address.toLowerCase());
 }
 
 export function startWorkflow(): void {
     onLargeTransaction((scan) => {
         processTransaction(scan).catch((err) => {
-            console.error('[watchWalletWorkflow] Pipeline error:', err)
-        })
-    })
-    startScanner()
-    console.log('[watchWalletWorkflow] WhaleWatch workflow started')
-}
-
-export function getWalletProfile(address: string): WalletProfile | undefined {
-    return walletProfiles.get(address.toLowerCase())
+            console.error('[watchWalletWorkflow] Pipeline error:', err);
+        });
+    });
+    startScanner();
 }
