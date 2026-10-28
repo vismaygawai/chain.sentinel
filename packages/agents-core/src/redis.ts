@@ -70,14 +70,36 @@ class LocalRedisMock extends EventEmitter {
     }
 
     pipeline() {
-        return {
-            exec: async () => [],
-            lpush: (key: string, val: string) => this.lpush(key, val),
+        const queue: Array<() => Promise<any> | any> = [];
+        const pipe = {
+            lpush: (key: string, val: string) => {
+                queue.push(() => this.lpush(key, val));
+                return pipe;
+            },
             ltrim: (key: string, start: number, stop: number) => {
-                const list = this.storage.get(key) || [];
-                this.storage.set(key, list.slice(start, stop + 1));
-            }
-        } as any;
+                queue.push(() => {
+                    const list = this.storage.get(key) || [];
+                    this.storage.set(key, list.slice(start, stop + 1));
+                });
+                return pipe;
+            },
+            set: (key: string, value: any, mode?: string, duration?: number, flag?: string) => {
+                queue.push(() => this.set(key, value, mode, duration, flag));
+                return pipe;
+            },
+            del: (...keys: string[]) => {
+                queue.push(() => this.del(...keys));
+                return pipe;
+            },
+            exec: async () => {
+                const results = [];
+                for (const op of queue) {
+                    results.push(await op());
+                }
+                return results;
+            },
+        };
+        return pipe as any;
     }
 
     async quit() {

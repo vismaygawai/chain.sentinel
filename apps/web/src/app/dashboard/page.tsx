@@ -63,12 +63,12 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Load user's registered surveillance workflows on mount via subscription lifecycle
+  // Load user's registered surveillance workflows on mount
   useEffect(() => {
-    let isSubscribed = true;
+    let isCancelled = false;
     getMonitoredWorkflows()
       .then((monitored) => {
-        if (!isSubscribed) return;
+        if (isCancelled) return;
         const uniqueWalletsMap = new Map<string, WalletInfo>();
         for (const w of monitored) {
           if (w.address) {
@@ -90,13 +90,13 @@ export default function DashboardPage() {
         setWatchedPositions(Array.from(uniquePositionsMap.values()));
       })
       .catch(() => {
-        if (!isSubscribed) return;
+        if (isCancelled) return;
         setWatchedWallets([]);
         setWatchedPositions([]);
       });
 
     return () => {
-      isSubscribed = false;
+      isCancelled = true;
     };
   }, []);
 
@@ -108,9 +108,10 @@ export default function DashboardPage() {
     }
   };
 
-  const loadPreset = (presetAddr: string) => {
+  const loadPreset = async (presetAddr: string) => {
     setAddressInput(presetAddr);
-    void scan(presetAddr, activePolicy);
+    await scan(presetAddr, activePolicy);
+    await fetchMonitored();
   };
 
   const totalMonitoredVal = result?.snapshot?.totalUsdValue !== undefined ? result.snapshot.totalUsdValue : 0;

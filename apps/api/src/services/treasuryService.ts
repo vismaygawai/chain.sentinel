@@ -36,9 +36,11 @@ export class TreasuryService {
       const profile = watchWalletWorkflow.getWalletProfile(address);
       return { alerts: profile?.lastWWSnapshot ? [profile.lastWWSnapshot] : [] };
     }
+    const windowStats = alertCorrelator.windowStats();
     return {
-      totalAlerts: 0,
-      windowStats: alertCorrelator.windowStats(),
+      alerts: [],
+      totalAlerts: windowStats.activeWhaleAlerts,
+      windowStats,
     };
   }
 

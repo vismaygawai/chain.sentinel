@@ -43,10 +43,10 @@ export const treasuryTools = {
     const concentration = treasuryTools.analyzeConcentration(snapshot);
     const sizeExposure = treasuryTools.analyzeSizeExposure(snapshot.totalUsdValue);
 
-    const baseScore = 100 - concentration.risk - sizeExposure.risk;
+    const riskScore = Math.min(100, Math.max(5, concentration.risk + sizeExposure.risk + 10));
     let level: RiskResult["level"] = "LOW";
-    if (baseScore < 70) level = "MEDIUM";
-    if (baseScore < 40) level = "HIGH";
+    if (riskScore >= 70) level = "HIGH";
+    else if (riskScore >= 40) level = "MEDIUM";
 
     const issues: string[] = [];
     if (concentration.risk > 0) issues.push(`Treasury concentration risk: ${concentration.concentration}`);
@@ -54,7 +54,7 @@ export const treasuryTools = {
 
     return {
       level,
-      score: Math.max(0, baseScore),
+      score: riskScore,
       issues
     };
   }

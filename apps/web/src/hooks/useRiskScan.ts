@@ -42,8 +42,8 @@ export function useRiskScan() {
       clearTimeout(t2);
       clearTimeout(t3);
 
-      // Register background monitoring in parallel
-      void Promise.allSettled([
+      // Register background monitoring in parallel and await persistence
+      await Promise.allSettled([
         registerWhaleWatcher(address),
         registerLiquidShield(address),
       ]);

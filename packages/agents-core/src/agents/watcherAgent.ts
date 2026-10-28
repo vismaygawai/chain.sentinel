@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import type { TreasurySnapshot } from '../types.ts';
 import { withResilientProvider } from '../tools/rpcTools.ts';
 import { getBatchPrices } from '../tools/priceTools.ts';
+import { fetchAaveUserAccountData } from '../tools/defiTools.ts';
 
 const ERC20_ABI = ['function balanceOf(address) view returns (uint256)'];
 
@@ -52,6 +53,20 @@ export async function watchTreasury(address: string): Promise<TreasurySnapshot> 
             usdValue,
           });
         }
+      }
+
+      try {
+        const aaveData = await fetchAaveUserAccountData(normalizedAddress, provider);
+        if (aaveData.totalCollateralUSD > 0) {
+          totalUsdValue += aaveData.totalCollateralUSD;
+          positions.push({
+            token: 'Aave V3 Collateral',
+            balance: aaveData.totalCollateralUSD,
+            usdValue: aaveData.totalCollateralUSD,
+          });
+        }
+      } catch {
+        // Not active on Aave V3 or contract call failed; keep token balances
       }
 
       console.log(`[watcherAgent] Scanned ${normalizedAddress}: Total=$${totalUsdValue.toFixed(2)} (${positions.length} assets)`);

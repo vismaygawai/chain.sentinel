@@ -9,7 +9,11 @@
     "strict": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "agents-core": ["../../packages/agents-core/src/index.ts"]
+    }
   },
   "include": ["src"]
 }

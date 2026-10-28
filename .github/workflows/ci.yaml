@@ -32,8 +32,8 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Type Check API
-        run: pnpm --filter api exec tsc --noEmit
+      - name: Type Check Monorepo (API & Agent Core)
+        run: pnpm typecheck
 
       - name: Run Multi-Agent Core Tests
         run: pnpm --filter agents-core test

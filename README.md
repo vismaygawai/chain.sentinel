@@ -90,8 +90,8 @@ ChainSentinel/
 
 ### 4.0 Live Deployments
 - Production Web Dashboard: https://chain-sentinel-web.vercel.app/
-- Fastify Live API Service: https://chain-sentinel-lt6e.onrender.com/
-- WebSocket Event Stream: wss://chain-sentinel-lt6e.onrender.com/ws/feed
+- Fastify Live API Service: https://chain-sentinel.onrender.com/
+- WebSocket Event Stream: wss://chain-sentinel.onrender.com/ws/feed
 
 ### 4.1 Prerequisites
 - Node.js: 24.x
@@ -184,9 +184,9 @@ Render hosts the autonomous multi-agent background workflows, real-time WebSocke
 
 4. Verify Deployment:
    - Click "Deploy Web Service".
-   - Once deployed, your backend is live at `https://chain-sentinel-lt6e.onrender.com`.
-   - HTTP Health Check: `GET https://chain-sentinel-lt6e.onrender.com/` returns status.
-   - WebSocket Feed: Connect to `wss://chain-sentinel-lt6e.onrender.com/ws/feed`.
+   - Once deployed, your backend is live at `https://chain-sentinel.onrender.com`.
+   - HTTP Health Check: `GET https://chain-sentinel.onrender.com/` returns status.
+   - WebSocket Feed: Connect to `wss://chain-sentinel.onrender.com/ws/feed`.
 
 ---
 
@@ -208,8 +208,8 @@ Vercel hosts the responsive Neo-Brutalist dashboard with Turbopack, automated SS
 
 3. Set Environment Variables:
    Add the following environment variables in the Vercel project configuration:
-   - `NEXT_PUBLIC_API_URL`: `https://chain-sentinel-lt6e.onrender.com` (Render API URL)
-   - `NEXT_PUBLIC_WS_URL`: `wss://chain-sentinel-lt6e.onrender.com/ws/feed` (Render WebSocket stream URL)
+   - `NEXT_PUBLIC_API_URL`: `https://chain-sentinel.onrender.com` (Render API URL)
+   - `NEXT_PUBLIC_WS_URL`: `wss://chain-sentinel.onrender.com/ws/feed` (Render WebSocket stream URL)
 
 4. Deploy & Verify:
    - Click "Deploy".

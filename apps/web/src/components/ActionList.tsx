@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { ProtectionPlan, GovernanceDecision } from "@/types/index";
 
 interface ActionListProps {
@@ -11,16 +11,35 @@ interface ActionListProps {
 export default function ActionList({ plan, decision }: ActionListProps) {
   const [executing, setExecuting] = useState(false);
   const [executed, setExecuted] = useState(false);
+  const timer1 = useRef<NodeJS.Timeout | null>(null);
+  const timer2 = useRef<NodeJS.Timeout | null>(null);
 
   const isLoaded = Boolean(decision || plan);
   const actions = decision?.enforcedActions || plan?.actions || [];
+  const canSimulate = isLoaded && actions.length > 0 && decision?.approved !== false;
+
+  const [prevTrigger, setPrevTrigger] = useState<unknown>(null);
+  const currentTrigger = decision ?? plan;
+  if (prevTrigger !== currentTrigger) {
+    setPrevTrigger(currentTrigger);
+    setExecuted(false);
+    setExecuting(false);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (timer1.current) clearTimeout(timer1.current);
+      if (timer2.current) clearTimeout(timer2.current);
+    };
+  }, []);
 
   const handleSimulateExecution = () => {
+    if (!canSimulate) return;
     setExecuting(true);
-    setTimeout(() => {
+    timer1.current = setTimeout(() => {
       setExecuting(false);
       setExecuted(true);
-      setTimeout(() => setExecuted(false), 5000);
+      timer2.current = setTimeout(() => setExecuted(false), 5000);
     }, 1200);
   };
 
@@ -50,7 +69,7 @@ export default function ActionList({ plan, decision }: ActionListProps) {
               </span>
             ) : (
               <span className="font-mono text-xs bg-red-100 text-red-900 border border-red-700 px-2.5 py-1 font-bold">
-                CONSENSUS: PENDING
+                CONSENSUS: BLOCKED
               </span>
             )}
           </div>
@@ -58,33 +77,42 @@ export default function ActionList({ plan, decision }: ActionListProps) {
 
         {/* Decision Rationale */}
         <div className="bg-[#f4f4f4] border border-black p-3.5 font-mono text-xs text-black">
-          <span className="font-bold uppercase text-gray-600 block mb-1">Arbitration Rationale:</span>
-          {isLoaded
-            ? decision?.reason || "System verified. Position complies with active risk tolerance rules."
-            : "Awaiting target telemetry. Autonomous consensus decisions will populate upon address scan."}
+          <span className="text-gray-500 font-bold block mb-1">
+            ARBITRATION RATIONALE:
+          </span>
+          <p className="leading-relaxed">
+            {decision?.reason || "Awaiting target scan to evaluate governance safety envelope."}
+          </p>
         </div>
 
-        {/* Action Items List */}
+        {/* Actions List */}
         <div className="space-y-3">
-          {!isLoaded || actions.length === 0 ? (
-            <div className="border-2 border-dashed border-gray-300 p-6 text-center font-mono text-xs text-gray-500">
-              No actions currently queued. Scan a treasury to evaluate protection rules.
+          <span className="font-mono text-xs font-bold text-gray-500 block uppercase tracking-wider">
+            Mandated Mitigation Actions ({actions.length})
+          </span>
+
+          {actions.length === 0 ? (
+            <div className="border border-dashed border-gray-300 p-6 text-center font-mono text-xs text-gray-400">
+              No defensive actions currently mandated
             </div>
           ) : (
             actions.map((act, idx) => {
-              const typeBadge = {
-                ALERT: "bg-yellow-200 text-yellow-950 border-black",
-                REDUCE: "bg-red-200 text-red-950 border-black",
-                DIVERSIFY: "bg-blue-200 text-blue-950 border-black",
-              }[act.type] || "bg-gray-200 text-black border-black";
+              const typeColor =
+                act.type === "REDUCE"
+                  ? "bg-red-500 text-white"
+                  : act.type === "DIVERSIFY"
+                  ? "bg-electric text-white"
+                  : "bg-black text-white";
 
               return (
                 <div
                   key={idx}
-                  className="border-2 border-black p-3.5 bg-white shadow-hard-sm flex items-start justify-between gap-4"
+                  className="border border-black p-3.5 bg-white flex items-center justify-between gap-4 shadow-hard-sm"
                 >
                   <div className="space-y-1">
-                    <span className={`inline-block font-mono text-[10px] font-black uppercase px-2 py-0.5 border ${typeBadge}`}>
+                    <span
+                      className={`inline-block border border-black px-2 py-0.5 font-mono text-[10px] font-black uppercase ${typeColor}`}
+                    >
                       {act.type}
                     </span>
                     <p className="font-mono text-xs text-gray-900 leading-normal">
@@ -111,10 +139,16 @@ export default function ActionList({ plan, decision }: ActionListProps) {
         ) : (
           <button
             onClick={handleSimulateExecution}
-            disabled={!isLoaded || executing}
+            disabled={!canSimulate || executing}
             className="w-full bg-black text-white hover:bg-electric border-2 border-black font-display text-xs font-black uppercase tracking-wider py-3.5 shadow-hard hover:shadow-hard-md active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {executing ? "Simulating On-Chain Transaction..." : isLoaded ? "Simulate Defensive Rebalance →" : "Awaiting Target Scan"}
+            {executing
+              ? "Simulating On-Chain Transaction..."
+              : !isLoaded
+              ? "Awaiting Target Scan"
+              : decision?.approved === false
+              ? "Simulation Blocked by Governance"
+              : "Simulate Defensive Rebalance →"}
           </button>
         )}
       </div>

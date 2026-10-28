@@ -47,16 +47,16 @@ export default function AllocationChart({ positions, totalUsdValue }: Allocation
             {/* Stacked Proportional Bar */}
             <div className="w-full h-8 border-2 border-black flex overflow-hidden shadow-hard-sm mt-5">
               {positions.map((pos, idx) => {
-                const pct = Math.max(3, (pos.usdValue / totalUsdValue) * 100);
+                const rawPct = totalUsdValue > 0 ? (pos.usdValue / totalUsdValue) * 100 : 0;
                 const colorClass = TOKEN_COLORS[pos.token] || "bg-gray-400 text-black";
                 return (
                   <div
                     key={`${pos.token}-${idx}`}
-                    style={{ width: `${pct}%` }}
-                    title={`${pos.token}: ${pct.toFixed(1)}% (${formatCurrency(pos.usdValue)})`}
+                    style={{ flexGrow: Math.max(1, pos.usdValue), minWidth: pos.usdValue > 0 ? '6px' : '0px' }}
+                    title={`${pos.token}: ${rawPct.toFixed(1)}% (${formatCurrency(pos.usdValue)})`}
                     className={`${colorClass} h-full border-r-2 last:border-r-0 border-black flex items-center justify-center font-mono text-[10px] font-bold overflow-hidden cursor-pointer transition-all hover:opacity-90`}
                   >
-                    {pct > 10 && pos.token}
+                    {rawPct > 10 && pos.token}
                   </div>
                 );
               })}

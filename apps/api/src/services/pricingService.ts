@@ -1,4 +1,4 @@
-import { priceTools } from '../../../../packages/agents-core/src/index.ts';
+import { priceTools } from 'agents-core';
 
 export class PricingService {
   public async getPrice(symbol: string): Promise<number> {

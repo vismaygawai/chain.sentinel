@@ -49,29 +49,28 @@ export async function fetchAaveUserAccountData(
     const collateralUSD = Number(totalCollateralBase) / 1e8;
     const debtUSD = Number(totalDebtBase) / 1e8;
     const availableUSD = Number(availableBorrowsBase) / 1e8;
-    const liqThreshold = Number(currentLiquidationThreshold) / 10000; // in percent (e.g. 8000 -> 80%)
+    const rawThreshold = Number(currentLiquidationThreshold) / 10000; // fraction, e.g. 0.825
     const ltvPct = Number(ltv) / 10000;
     const hf = Number(ethers.formatUnits(healthFactor, 18));
 
     // Distance to liquidation: percentage fall in collateral before HF hits 1.0
     // HF = (Collateral * LiqThreshold) / Debt
-    // Liquidation occurs when Collateral drops such that Collateral * LiqThreshold = Debt
     const distanceToLiquidation =
       collateralUSD > 0 && debtUSD > 0
-        ? Math.max(0, (1 - (debtUSD / (collateralUSD * (liqThreshold / 100)))) * 100)
+        ? Math.max(0, (1 - (debtUSD / (collateralUSD * rawThreshold))) * 100)
         : 100;
 
     return {
       totalCollateralUSD: collateralUSD,
       totalDebtUSD: debtUSD,
       availableBorrowsUSD: availableUSD,
-      currentLiquidationThreshold: liqThreshold,
-      ltv: ltvPct,
+      currentLiquidationThreshold: rawThreshold * 100, // percentage e.g. 82.5%
+      ltv: ltvPct * 100,
       healthFactor: hf,
       isAtRisk: hf < 1.3 && debtUSD > 0,
       distanceToLiquidationPct: distanceToLiquidation,
     };
-  } catch (error) {
+  } catch {
     // Deterministic fallback for mock / demo / offline scenarios
     const fallbackHF = 1.45;
     return {
@@ -97,7 +96,8 @@ export function calculateRequiredDebtRepayment(
   targetHF: number = 2.0
 ): number {
   if (currentDebtUSD <= 0) return 0;
-  const maxAllowedDebt = (totalCollateralUSD * (liquidationThresholdPct / 100)) / targetHF;
+  const thresholdFraction = liquidationThresholdPct > 1 ? liquidationThresholdPct / 100 : liquidationThresholdPct;
+  const maxAllowedDebt = (totalCollateralUSD * thresholdFraction) / targetHF;
   if (currentDebtUSD <= maxAllowedDebt) return 0;
   return Math.max(0, currentDebtUSD - maxAllowedDebt);
 }

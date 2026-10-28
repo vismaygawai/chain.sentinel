@@ -1,7 +1,6 @@
 import { AgentBuilder } from '@iqai/adk';
 import { google } from '@ai-sdk/google';
-import { createOpenAI } from '@ai-sdk/openai';
-import type { AgentConfig } from '../types.js';
+import type { AgentConfig } from '../types.ts';
 
 export type { AgentConfig };
 

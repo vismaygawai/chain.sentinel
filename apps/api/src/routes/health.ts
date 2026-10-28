@@ -3,7 +3,7 @@ import { prisma, alertCorrelator } from '../../../../packages/agents-core/src/in
 import { getClientCount, getReplayBufferSize } from '../websocket/liveFeed.ts';
 import { atpService } from '../services/atpService.ts';
 import { ScanController } from '../controllers/scanController.ts';
-import type { HealthQuery } from '../types/api.ts';
+import type { HealthQuery, SystemMetricsResponse } from '../types/api.ts';
 
 export async function healthRoutes(server: FastifyInstance) {
   // Root index endpoint
@@ -30,7 +30,7 @@ export async function healthRoutes(server: FastifyInstance) {
 
   server.get('/healthz', async () => {
     try {
-      await prisma.user.count();
+      await prisma.wallet.findMany();
       return { status: 'ok', database: 'connected', timestamp: new Date().toISOString() };
     } catch {
       return { status: 'degraded', database: 'fallback-storage', timestamp: new Date().toISOString() };
@@ -45,16 +45,24 @@ export async function healthRoutes(server: FastifyInstance) {
     };
   });
 
-  server.get('/metrics', async () => {
+  server.get('/metrics', async (): Promise<SystemMetricsResponse> => {
+    const atpStatus = atpService.getStatus();
+    const correlatorStats = alertCorrelator.windowStats();
     return {
       uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      correlator: alertCorrelator.windowStats(),
+      alerts: {
+        whaleTotal: correlatorStats.activeWhaleAlerts,
+        liquidationTotal: correlatorStats.activeLiquidationAlerts,
+      },
+      correlator: correlatorStats,
       websocket: {
         connectedClients: getClientCount(),
         replayBufferSize: getReplayBufferSize(),
       },
-      atp: atpService.getStatus(),
+      atp: {
+        registered: atpStatus.status === 'ACTIVE' || atpStatus.status === 'REGISTERED',
+        agentId: atpStatus.agentId,
+      },
     };
   });
 }

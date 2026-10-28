@@ -24,15 +24,19 @@ const start = async () => {
     // Start Autonomous Multi-Agent Workflows
     console.log('[ChainSentinel] Starting autonomous background workflows...');
     watchWalletWorkflow.startWorkflow();
-    scanPositionWorkflow.startWorkflow();
+    const stopPositionScan = scanPositionWorkflow.startWorkflow();
 
     // Sync tracked addresses from persistent local store
     try {
       const dbWallets = await prisma.wallet.findMany();
       for (const wallet of dbWallets) {
         if (isAddress(wallet.address)) {
-          await watchWalletWorkflow.registerWallet(wallet.address);
-          await scanPositionWorkflow.registerPosition(wallet.address);
+          if (wallet.type === 'WHALE' || wallet.type === 'CEX_EXCHANGE' || wallet.type === 'DAO_TREASURY') {
+            await watchWalletWorkflow.registerWallet(wallet.address);
+          }
+          if (wallet.type === 'POSITION' || wallet.type === 'WHALE_BORROWER') {
+            await scanPositionWorkflow.registerPosition(wallet.address);
+          }
         }
       }
       console.log(`[ChainSentinel] Synced ${dbWallets.length} wallets into active monitoring.`);
@@ -45,6 +49,7 @@ const start = async () => {
     for (const signal of signals) {
       process.on(signal, async () => {
         console.log(`\nReceived ${signal}. Gracefully stopping Chain Sentinel server...`);
+        stopPositionScan?.();
         await server.close();
         process.exit(0);
       });

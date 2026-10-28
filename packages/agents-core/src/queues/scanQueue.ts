@@ -40,7 +40,7 @@ export function enqueue(address: string, healthFactor: number): void {
         address: address.toLowerCase(),
         tier,
         intervalMs,
-        nextScanAt: Date.now() + intervalMs,
+        nextScanAt: Date.now(),
     })
 }
 
