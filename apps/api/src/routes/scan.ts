@@ -1,5 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { ScanController } from '../controllers/scanController.ts';
+import { CHAINS } from '../config/chains.ts';
+import { MONITORED_TOKENS } from '../config/tokens.ts';
+import { pricingService } from '../services/pricingService.ts';
 import type {
   RiskScanRequestBody,
   WhaleRegisterRequestBody,
@@ -22,4 +25,15 @@ export async function scanRoutes(server: FastifyInstance) {
 
   // Monitored Workflows Overview
   server.get('/api/monitored', ScanController.getMonitored);
+
+  // Supported Chains and Live Prices
+  server.get('/api/chains', async () => {
+    return { chains: CHAINS };
+  });
+
+  server.get('/api/prices', async () => {
+    const symbols = MONITORED_TOKENS.map((t) => t.symbol);
+    const prices = await pricingService.getPrices(symbols);
+    return { tokens: MONITORED_TOKENS, prices };
+  });
 }

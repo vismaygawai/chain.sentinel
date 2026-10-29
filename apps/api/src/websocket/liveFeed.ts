@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import type { CompoundAlert } from '../../../../packages/agents-core/src/types.ts';
-import { alertCorrelator } from '../../../../packages/agents-core/src/index.ts';
+import type { CompoundAlert } from 'agents-core';
+import { alertCorrelator } from 'agents-core';
 import type { WebSocket } from 'ws';
 
 type AlertType = 'WHALE' | 'LIQUIDATION' | 'COMPOUND';

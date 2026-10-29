@@ -4,7 +4,7 @@ import {
   scanPositionWorkflow,
   alertCorrelator,
   prisma,
-} from '../../../../packages/agents-core/src/index.ts';
+} from 'agents-core';
 
 export class TreasuryService {
   public async scanTreasury(address: string, policy?: string) {
@@ -33,13 +33,20 @@ export class TreasuryService {
 
   public getWhaleAlerts(address?: string) {
     if (address) {
+      const recent = alertCorrelator.getRecentAlerts(address);
       const profile = watchWalletWorkflow.getWalletProfile(address);
-      return { alerts: profile?.lastWWSnapshot ? [profile.lastWWSnapshot] : [] };
+      const alerts = recent.map((c) => c.wwAlert).filter(Boolean);
+      if (alerts.length === 0 && profile?.lastWWSnapshot) {
+        alerts.push(profile.lastWWSnapshot);
+      }
+      return { alerts, totalAlerts: alerts.length };
     }
+    const recent = alertCorrelator.getRecentAlerts();
+    const alerts = recent.map((c) => c.wwAlert).filter(Boolean);
     const windowStats = alertCorrelator.windowStats();
     return {
-      alerts: [],
-      totalAlerts: windowStats.activeWhaleAlerts,
+      alerts,
+      totalAlerts: alerts.length || windowStats.activeWhaleAlerts,
       windowStats,
     };
   }

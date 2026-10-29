@@ -29,6 +29,8 @@ export default function DashboardPage() {
   const handleClear = () => {
     setAddressInput("");
     reset();
+    setWatchedWallets([]);
+    setWatchedPositions([]);
   };
 
   const fetchMonitored = useCallback(async () => {
@@ -79,7 +81,10 @@ export default function DashboardPage() {
   const totalMonitoredVal = result?.snapshot?.totalUsdValue !== undefined ? result.snapshot.totalUsdValue : 0;
   const currentRiskScore = result?.risk?.score ?? 0;
   const currentRiskTier = result?.risk?.tier || (currentRiskScore > 70 ? "CRITICAL" : currentRiskScore > 40 ? "WARNING" : "SAFE");
-  const currentHF = result?.risk?.healthFactor ? result.risk.healthFactor.toFixed(2) : "N/A";
+  const currentHF =
+    result?.risk?.healthFactor && result.risk.healthFactor > 0
+      ? result.risk.healthFactor.toFixed(2)
+      : "N/A (No Debt)";
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-black font-body selection:bg-electric selection:text-white flex flex-col">

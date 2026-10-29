@@ -5,7 +5,7 @@ import {
   watchWalletWorkflow,
   scanPositionWorkflow,
   prisma,
-} from '../../../packages/agents-core/src/index.ts';
+} from 'agents-core';
 
 const start = async () => {
   try {

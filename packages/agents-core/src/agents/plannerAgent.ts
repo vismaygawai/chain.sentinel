@@ -1,10 +1,11 @@
 import { createAgent } from '../lib/agentFactory.ts';
 import type { RiskResult, ProtectionPlan } from "../types.ts";
 import { callQwenLLM, extractJSON } from "../tools/treasuryTools.ts";
+import { getPolicy } from "../policies/index.ts";
 
 /**
  * Protection Planning Agent using ADK
- * Generates mitigation strategies based on risk assessment
+ * Generates mitigation strategies based on risk assessment and selected policy
  */
 
 let plannerAgent: any = null;
@@ -16,7 +17,7 @@ export async function initPlannerAgent() {
   const built = createAgent({
     name: "protection_planner_agent",
     instructions: `You are a DeFi treasury protection strategist.
-Based on risk assessment, create a protection plan using only:
+Based on risk assessment and governance policy, create a protection plan using only:
 - ALERT: notify operators
 - REDUCE: reduce risky exposure
 - DIVERSIFY: diversify across assets
@@ -31,10 +32,15 @@ Return STRICT JSON ONLY:
 
   plannerAgent = built;
   plannerRunner = built.runner;
-  console.log("✅ Planner Agent initialized (createAgent/Gemini)");
+  console.log("[plannerAgent] Initialized (createAgent/Gemini)");
 }
 
-export async function generateProtectionPlan(risk: RiskResult): Promise<ProtectionPlan> {
+export async function generateProtectionPlan(
+  risk: RiskResult,
+  policyName: string = 'CONSERVATIVE'
+): Promise<ProtectionPlan> {
+  const policy = getPolicy(policyName);
+
   try {
     // Ensure agent is initialized
     if (!plannerRunner) {
@@ -42,7 +48,14 @@ export async function generateProtectionPlan(risk: RiskResult): Promise<Protecti
     }
 
     // Use ADK runner with specific protection strategy prompt
-    const prompt = `TASK: Design protection strategy based on detected risks.
+    const prompt = `TASK: Design protection strategy based on detected risks and policy constraints.
+
+POLICY APPLIED:
+- Name: ${policy.name}
+- Target Min Health Factor: ${policy.minHealthFactor}
+- Max Single Asset Concentration: ${policy.maxSingleAssetConcentrationPct}%
+- Liquidation Buffer: ${policy.liquidationBufferPct}%
+- MultiSig Required: ${policy.requireMultiSigApproval}
 
 CURRENT RISK ASSESSMENT:
 - Risk Level: ${risk.level}
@@ -50,9 +63,9 @@ CURRENT RISK ASSESSMENT:
 - Identified Issues: ${(risk.issues || []).join(" | ")}
 
 STRATEGY GUIDELINES:
-- HIGH risk: Always recommend ALERT (notify) and REDUCE (cut exposure)
-- MEDIUM risk: Recommend DIVERSIFY (spread assets) and ALERT
-- LOW risk: Recommend light DIVERSIFY or no action needed
+- HIGH risk: Always recommend ALERT (notify) and REDUCE (cut exposure to under ${policy.maxSingleAssetConcentrationPct}%)
+- MEDIUM risk: Recommend DIVERSIFY (maintain ${policy.liquidationBufferPct}% buffer) and ALERT
+- LOW risk: Recommend light DIVERSIFY or steady-state ALERT
 
 ACTION TYPES:
 - ALERT: Notify treasury managers of risks
@@ -73,14 +86,14 @@ OUTPUT ONLY THIS JSON:
           response = typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
         }
       } catch (adkErr) {
-        console.warn("⚠️ ADK agent execution failed, falling back to Qwen:", adkErr);
+        console.warn("[plannerAgent] ADK agent execution failed, attempting fallback:", adkErr);
       }
     }
 
     if (!response) {
       response = await callQwenLLM(prompt);
     }
-    console.log("[DEBUG] Raw Planner LLM response:", response);
+    console.log("[plannerAgent] LLM response received");
 
     const parsed = extractJSON<ProtectionPlan>(response);
 
@@ -92,25 +105,25 @@ OUTPUT ONLY THIS JSON:
           a.type && ["ALERT", "REDUCE", "DIVERSIFY"].includes(a.type) && a.message
       )
     ) {
-      console.log("✅ Protection plan from LLM");
+      console.log("[plannerAgent] Protection plan generated from LLM");
       return parsed;
     }
   } catch (err) {
-    console.warn("⚠️ LLM planner failed, using deterministic fallback:", err);
+    console.warn("[plannerAgent] LLM planner fallback activated:", err instanceof Error ? err.message : String(err));
   }
 
-  // Deterministic fallback based on risk level
-  console.log("✅ Protection plan from deterministic fallback");
+  // Deterministic fallback based on risk level and policy
+  console.log(`[plannerAgent] Protection plan generated from deterministic rules (${policy.name} policy)`);
   if (risk.level === "HIGH") {
     return {
       actions: [
         {
           type: "ALERT",
-          message: "High risk exposure detected. Immediate review required."
+          message: `High risk exposure detected under ${policy.name} policy. Immediate operator review required.`
         },
         {
           type: "REDUCE",
-          message: "Reduce concentration in top asset to under 50% of treasury."
+          message: `Reduce concentration in top asset to under ${policy.maxSingleAssetConcentrationPct}% of treasury.`
         }
       ]
     };
@@ -121,11 +134,11 @@ OUTPUT ONLY THIS JSON:
       actions: [
         {
           type: "DIVERSIFY",
-          message: "Consider reallocating 20% into stable assets (USDC, DAI)."
+          message: `Consider reallocating into stable assets to preserve ${policy.liquidationBufferPct}% safety buffer.`
         },
         {
           type: "ALERT",
-          message: "Treasury risk is moderate. Monitor market volatility."
+          message: `Treasury risk is moderate under ${policy.name} policy. Monitor market volatility.`
         }
       ]
     };
@@ -135,7 +148,7 @@ OUTPUT ONLY THIS JSON:
     actions: [
       {
         type: "ALERT",
-        message: "Treasury is stable. Monitor regularly."
+        message: `Treasury is stable within ${policy.name} policy bounds. Monitor regularly.`
       }
     ]
   };

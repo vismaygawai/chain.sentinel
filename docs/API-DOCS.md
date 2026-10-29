@@ -121,7 +121,13 @@ Retrieves historical alerts and correlator window statistics.
 
 ---
 
-### 1.5 System Metrics & Liveness
+### 1.5 Supported Chains & Token Prices
+- `GET /api/chains` — Returns configuration metadata, RPC endpoints, and Aave V3 pool addresses for supported chains (Ethereum, Arbitrum, Sepolia).
+- `GET /api/prices` — Returns real-time USD oracle prices for all monitored tokens (ETH, WETH, USDT, USDC, DAI, WBTC).
+
+---
+
+### 1.6 System Metrics & Liveness
 - `GET /healthz` — Service health and persistent database connection status.
 - `GET /ready` — Service readiness check.
 - `GET /metrics` — Uptime, memory usage, connected WebSocket client count, and correlator telemetry.

@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { createAgent } from '../lib/agentFactory.ts';
 import type { RiskTier } from '../queues/scanQueue.ts';
 import { classifyTier } from '../queues/scanQueue.ts';
@@ -6,38 +7,54 @@ import { fetchAaveUserAccountData } from '../tools/defiTools.ts';
 import { threatVectorStore } from '../memory/vectorStore.ts';
 import { getPolicy } from '../policies/index.ts';
 
+export const RiskSignalSchema = z.object({
+  address: z.string(),
+  score: z.number().min(0).max(100),
+  level: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+  tier: z.enum(['SAFE', 'WARNING', 'DANGER', 'CRITICAL']),
+  healthFactor: z.number().optional(),
+  issues: z.array(z.string()),
+  narrative: z.string(),
+  source: z.enum(['deterministic', 'llm-enriched']),
+});
+
 export interface RiskAssessment extends RiskResult {
   address: string;
-  healthFactor: number;
+  healthFactor?: number;
   tier: RiskTier;
   score: number;
   narrative: string;
   source: 'deterministic' | 'llm-enriched';
 }
 
-export function deterministicScore(address: string, healthFactor: number): RiskAssessment {
-  const tier = classifyTier(healthFactor);
+export function deterministicScore(address: string, healthFactor?: number): RiskAssessment {
+  const hf = healthFactor && healthFactor > 0 ? healthFactor : 0;
+  const hasDebt = hf > 0;
+  const tier = hasDebt ? classifyTier(hf) : 'SAFE';
   let score: number;
-  if (healthFactor < 1.0) score = 100;
-  else if (healthFactor < 1.1) score = 95;
-  else if (healthFactor < 1.3) score = 75;
-  else if (healthFactor < 2.0) score = 40;
+  if (!hasDebt) score = 10;
+  else if (hf < 1.0) score = 100;
+  else if (hf < 1.1) score = 95;
+  else if (hf < 1.3) score = 75;
+  else if (hf < 2.0) score = 40;
   else score = 15;
 
   const level: 'LOW' | 'MEDIUM' | 'HIGH' =
     tier === 'CRITICAL' || tier === 'DANGER' ? 'HIGH' : tier === 'WARNING' ? 'MEDIUM' : 'LOW';
 
   const issues: string[] = [];
-  if (healthFactor < 1.3) {
-    issues.push(`Low Aave V3 health factor: ${healthFactor.toFixed(2)} (liquidation threshold at 1.00)`);
+  if (hasDebt && hf < 1.3) {
+    issues.push(`Low Aave V3 health factor: ${hf.toFixed(2)} (liquidation threshold at 1.00)`);
   }
 
   return {
     address,
-    healthFactor,
+    healthFactor: hasDebt ? hf : undefined,
     tier,
     score,
-    narrative: `Health factor ${healthFactor.toFixed(2)} classified as ${tier} (${score}/100 risk score).`,
+    narrative: hasDebt
+      ? `Health factor ${hf.toFixed(2)} classified as ${tier} (${score}/100 risk score).`
+      : `No active borrow debt. Treasury profile in safe baseline state (${score}/100 score).`,
     source: 'deterministic',
     level,
     issues,
@@ -45,11 +62,12 @@ export function deterministicScore(address: string, healthFactor: number): RiskA
 }
 
 export async function llmEnrich(assessment: RiskAssessment): Promise<RiskAssessment> {
-  if (assessment.healthFactor > 0 && assessment.healthFactor < 1.1) {
-    return {
+  if (assessment.healthFactor && assessment.healthFactor > 0 && assessment.healthFactor < 1.1) {
+    const res = {
       ...assessment,
       narrative: `CRITICAL: Health factor at ${assessment.healthFactor.toFixed(4)} — immediate debt repayment required.`,
     };
+    return RiskSignalSchema.parse(res);
   }
   const similar = threatVectorStore.querySimilar(assessment.narrative, 1)[0];
   const enrichedNarrative =
@@ -57,7 +75,8 @@ export async function llmEnrich(assessment: RiskAssessment): Promise<RiskAssessm
       ? `${assessment.narrative} Pattern matches ${similar.incident.protocol} (${similar.incident.type}): ${similar.incident.recommendedMitigation}.`
       : assessment.narrative;
 
-  return { ...assessment, narrative: enrichedNarrative, source: 'llm-enriched' };
+  const res = { ...assessment, narrative: enrichedNarrative, source: 'llm-enriched' as const };
+  return RiskSignalSchema.parse(res);
 }
 
 export async function assessRisk(
@@ -69,14 +88,16 @@ export async function assessRisk(
     const policyName = typeof healthFactorOrPolicy === 'string' ? healthFactorOrPolicy : 'CONSERVATIVE';
     const policy = getPolicy(policyName);
 
-    let hf = 2.85;
+    let hf: number | undefined = undefined;
     let hasDebt = false;
     try {
       const aaveData = await fetchAaveUserAccountData(snapshot.address);
       hasDebt = aaveData.totalDebtUSD > 0;
-      if (hasDebt) hf = aaveData.healthFactor;
+      if (hasDebt && aaveData.healthFactor > 0) {
+        hf = aaveData.healthFactor;
+      }
     } catch {
-      // If Aave account data fails to fetch, keep default safe buffer
+      // If Aave account data fails to fetch, wallet has no active lending debt
     }
 
     // Calculate max single-asset concentration
@@ -92,41 +113,10 @@ export async function assessRisk(
       }
     }
 
-    const addrKey = snapshot.address.toLowerCase();
-    if (addrKey === '0xd8da6bf26964af9d7eed9e03e53415d37aa96045') {
-      return {
-        address: snapshot.address,
-        healthFactor: 3.0,
-        tier: 'SAFE',
-        score: 18,
-        narrative: `Treasury reserves ($${(snapshot.totalUsdValue / 1e6).toFixed(2)}M) maintain a healthy diversified portfolio across 5 major assets with conservative exposure.`,
-        source: 'llm-enriched',
-        level: 'LOW',
-        issues: [],
-      };
-    }
-
-    if (addrKey === '0x577da75775b0606b5d92582b1c67e9154b7c62c3') {
-      return {
-        address: snapshot.address,
-        healthFactor: 1.14,
-        tier: 'DANGER',
-        score: 78,
-        narrative: `Critical lending position alert: Health factor is 1.14 with $5.20M debt exposure against $9.42M collateral. Emergency debt repayment required to prevent liquidation.`,
-        source: 'llm-enriched',
-        level: 'HIGH',
-        issues: [
-          'Aave V3 Health Factor (1.14) is approaching critical liquidation threshold (1.00)',
-          'Borrow debt ($5.20M) requires immediate partial repayment',
-          'Collateral distance to liquidation is under 12.5%',
-        ],
-      };
-    }
-
     const issues: string[] = [];
     let score = 15;
 
-    if (hasDebt && hf < policy.minHealthFactor) {
+    if (hasDebt && hf !== undefined && hf < policy.minHealthFactor) {
       score += hf < 1.15 ? 65 : hf < 1.35 ? 45 : 25;
       issues.push(
         `Health factor ${hf.toFixed(2)} is below ${policy.name} policy minimum (${policy.minHealthFactor.toFixed(2)})`
@@ -149,7 +139,7 @@ export async function assessRisk(
 
     const base: RiskAssessment = {
       address: snapshot.address,
-      healthFactor: hf,
+      healthFactor: hasDebt ? hf : undefined,
       tier,
       score,
       narrative:
@@ -171,7 +161,7 @@ export async function assessRisk(
 
   const base = deterministicScore(
     targetAddress,
-    typeof healthFactorOrPolicy === 'number' ? healthFactorOrPolicy : 2.0
+    typeof healthFactorOrPolicy === 'number' ? healthFactorOrPolicy : undefined
   );
   return llmEnrich(base);
 }

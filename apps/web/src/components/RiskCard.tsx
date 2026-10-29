@@ -61,7 +61,7 @@ export default function RiskCard({ risk }: RiskCardProps) {
             <div>
               <span className="text-gray-500">Health Factor: </span>
               <span className="font-bold text-black">
-                {risk?.healthFactor ? risk.healthFactor.toFixed(2) : "N/A"}
+                {risk?.healthFactor && risk.healthFactor > 0 ? risk.healthFactor.toFixed(2) : "N/A (No Debt)"}
               </span>
             </div>
             <div>

@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Chain Sentinel Web Console
 
-## Getting Started
+The **Chain Sentinel Web Console** is a high-performance Next.js 15 operations dashboard built for real-time DeFi treasury surveillance, multi-agent exposure arbitration, and autonomous liquidation defense.
 
-First, run the development server:
+## Core Capabilities
+
+- **Command Matrix & Surveillance HUD**: Real-time telemetry, continuous WebSocket alert stream, and active Agent Tokenization Platform (`cSNT`) registration badges.
+- **On-Chain Risk & Exposure Scoring**: Interactive breakdown of treasury solvency, concentration, and Aave V3 lending health factor.
+- **Dynamic Asset Allocation**: Interactive neo-brutalist asset distribution charts with compact token balance metrics.
+- **Live Event Stream**: Real-time mempool whale activity and lending liquidation risk signals correlated in sliding time windows.
+- **Autonomous Governance Simulation**: Visual execution of ADK-TS multi-agent defensive plans with policy constraints (Conservative, Balanced, Aggressive).
+
+## Tech Stack
+
+- **Framework**: Next.js 15 (App Router, Turbopack)
+- **Styling**: Tailwind CSS with Neo-Brutalist design language (hard borders, high contrast, zero-blur hard shadows)
+- **Web3 / Cryptography**: Ethers.js v6
+- **Real-Time Streaming**: Fastify WebSocket feed with automated heartbeat & replay buffers
+- **AI Agent Integration**: `@iqai/adk` multi-agent pipeline
+
+## Local Development
+
+From the repository root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# Start frontend together with the API and agent workers
 pnpm dev
-# or
-bun dev
+
+# Or run frontend only
+pnpm --filter web dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The console will be accessible at [http://localhost:3000](http://localhost:3000).

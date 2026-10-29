@@ -64,14 +64,18 @@ export const treasuryTools = {
  * Qwen LLM integration for ADK agents with retry logic
  */
 export async function callQwenLLM(prompt: string, retries: number = 1): Promise<string> {
-  const timeout = 2500; // 15s timeout
+  const baseUrl = process.env.QWEN_API_URL;
+  if (!baseUrl) {
+    throw new Error("QWEN_API_URL not configured");
+  }
+
+  const timeout = 2500;
 
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-      const baseUrl = process.env.QWEN_API_URL || "https://ollama-qwen.zeabur.app";
       const endpoint = baseUrl.endsWith("/api/generate") ? baseUrl : `${baseUrl.replace(/\/$/, "")}/api/generate`;
 
       const res = await fetch(endpoint, {

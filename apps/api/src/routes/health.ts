@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { prisma, alertCorrelator } from '../../../../packages/agents-core/src/index.ts';
+import { prisma, alertCorrelator } from 'agents-core';
 import { getClientCount, getReplayBufferSize } from '../websocket/liveFeed.ts';
 import { atpService } from '../services/atpService.ts';
 import { ScanController } from '../controllers/scanController.ts';

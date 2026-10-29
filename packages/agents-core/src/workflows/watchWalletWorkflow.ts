@@ -1,9 +1,8 @@
 import type { WhaleScanResult, WalletProfile } from '../types.ts';
 import { startScanner, onLargeTransaction } from '../agents/scannerAgent.ts';
 import { classifyIntent } from '../agents/intentAgent.ts';
-import { formatAlert } from '../agents/alertAgent.ts';
+import { formatAlert, routeToCorrelator } from '../agents/alertAgent.ts';
 import { evaluateAlert } from '../agents/wwGovernanceAgent.ts';
-import * as alertCorrelator from '../correlation/alertCorrelator.ts';
 import * as walletHistory from '../memory/walletHistory.ts';
 
 const registeredWallets = new Set<string>();
@@ -44,10 +43,15 @@ export async function processTransaction(scan: WhaleScanResult): Promise<void> {
         console.log(`[watchWalletWorkflow] Alert rejected: ${decision.reason}`);
         return;
     }
-    alertCorrelator.ingestWhaleAlert(scan);
+    const enrichedScan: WhaleScanResult = {
+        ...scan,
+        intent: intentResult.intent,
+        label: intentResult.label || scan.label,
+    };
+    await routeToCorrelator(alert);
     const profile = walletProfiles.get(addr);
     if (profile) {
-        profile.lastWWSnapshot = scan;
+        profile.lastWWSnapshot = enrichedScan;
         walletProfiles.set(addr, profile);
     }
     console.log(`[watchWalletWorkflow] Alert processed: ${scan.txHash} (${intentResult.intent})`);

@@ -8,6 +8,7 @@ const OUTPUT_FILE = path.join(ROOT_DIR, 'chain-sentinel-codebase.txt');
 // Binary / large auto-generated files to skip
 const IGNORED_FILES = new Set([
   'pnpm-lock.yaml',
+  'chain-sentinel-codebase.txt',
   'apps/web/public/favicon.ico',
   'apps/web/public/logo-new.png',
   'apps/web/public/logo.png',

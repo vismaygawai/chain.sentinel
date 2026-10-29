@@ -11,7 +11,7 @@ import { enforceGovernance, initGovernanceAgent } from "../agents/governanceAgen
 
 export async function runTreasuryWorkflow(address: string, policy?: string) {
   try {
-    console.log("🚀 Starting Treasury Governance Workflow (ADK-driven)");
+    console.log("[treasuryWorkflow] Starting Treasury Governance Workflow (ADK-driven)");
 
     // Initialize all ADK agents
     await initRiskAgent();
@@ -19,55 +19,31 @@ export async function runTreasuryWorkflow(address: string, policy?: string) {
     await initGovernanceAgent();
 
     // 1. Watch Treasury (Real On-Chain Data)
-    console.log("1️⃣  Reading on-chain treasury...");
-    let snapshot = await watchTreasury(address);
-    const addrKey = address.toLowerCase();
-
-    // Verified demo profiles for hackathon presentation
-    if (addrKey === '0xd8da6bf26964af9d7eed9e03e53415d37aa96045' && snapshot.totalUsdValue < 1_000_000) {
-      snapshot = {
-        address: ethers.getAddress(address),
-        totalUsdValue: 18450000,
-        positions: [
-          { token: 'ETH', balance: 3120, usdValue: 8892000 },
-          { token: 'USDC', balance: 4200000, usdValue: 4200000 },
-          { token: 'DAI', balance: 3100000, usdValue: 3100000 },
-          { token: 'WBTC', balance: 25.5, usdValue: 1637100 },
-          { token: 'MKR', balance: 420, usdValue: 620900 },
-        ],
-      };
-    } else if (addrKey === '0x577da75775b0606b5d92582b1c67e9154b7c62c3' && (!snapshot.positions.some(p => p.token === 'Aave V3 Collateral') || snapshot.totalUsdValue < 5_000_000)) {
-      snapshot = {
-        address: ethers.getAddress(address),
-        totalUsdValue: 9420000,
-        positions: [
-          { token: 'Aave V3 Collateral', balance: 9420000, usdValue: 9420000 },
-          { token: 'ETH', balance: 1450, usdValue: 4132500 },
-        ],
-      };
-    }
-    console.log("✅ Treasury snapshot acquired");
+    console.log("[treasuryWorkflow] Reading on-chain treasury...");
+    const snapshot = await watchTreasury(address);
+    console.log(`[treasuryWorkflow] Treasury snapshot acquired for ${snapshot.address}`);
 
     // 2. Risk Analysis (ADK Agent)
-    console.log("2️⃣  Analyzing risk with ADK Risk Agent...");
+    console.log("[treasuryWorkflow] Analyzing risk with ADK Risk Agent...");
     const risk = await analyzeRisk(snapshot, policy);
-    console.log(`✅ Risk Level: ${risk.level} (Score: ${risk.score}/100)`);
+    console.log(`[treasuryWorkflow] Risk Level: ${risk.level} (Score: ${risk.score}/100)`);
 
     // 3. Protection Planning (ADK Agent)
-    console.log("3️⃣  Generating protection plan with ADK Planner Agent...");
-    const plan = await generateProtectionPlan(risk);
-    console.log(`✅ Generated ${plan.actions.length} protection actions`);
+    console.log("[treasuryWorkflow] Generating protection plan with ADK Planner Agent...");
+    const plan = await generateProtectionPlan(risk, policy);
+    console.log(`[treasuryWorkflow] Generated ${plan.actions.length} protection actions`);
 
     // 4. Governance Enforcement (ADK Agent)
-    console.log("4️⃣  Enforcing governance with ADK Governance Agent...");
+    console.log("[treasuryWorkflow] Enforcing governance with ADK Governance Agent...");
     const governance = await enforceGovernance({
       risk,
       plan,
-      totalUsdValue: snapshot.totalUsdValue
+      totalUsdValue: snapshot.totalUsdValue,
+      policy,
     });
-    console.log(`✅ Governance Decision: ${governance.approved ? "APPROVED" : "BLOCKED"}`);
+    console.log(`[treasuryWorkflow] Governance Decision: ${governance.approved ? "APPROVED" : "BLOCKED"}`);
 
-    console.log("✅ Treasury Governance Workflow Complete (ADK Pipeline)\n");
+    console.log("[treasuryWorkflow] Treasury Governance Workflow Complete\n");
 
     return {
       snapshot,
@@ -77,7 +53,7 @@ export async function runTreasuryWorkflow(address: string, policy?: string) {
       decision: governance
     };
   } catch (err) {
-    console.error("❌ Workflow error:", err);
+    console.error("[treasuryWorkflow] Workflow error:", err);
 
     const fallbackGovernance = {
       approved: false,

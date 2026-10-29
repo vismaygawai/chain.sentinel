@@ -45,3 +45,4 @@ bin/
 *-codebase.txt
 *.codebase.txt
 codebase.txt
+!chain-sentinel-codebase.txt

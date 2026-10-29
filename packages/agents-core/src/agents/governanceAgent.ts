@@ -1,6 +1,7 @@
 import { createAgent } from '../lib/agentFactory.ts';
 import type { RiskResult, ProtectionPlan, GovernanceDecision } from "../types.ts";
 import { callQwenLLM, extractJSON } from "../tools/treasuryTools.ts";
+import { getPolicy } from "../policies/index.ts";
 
 /**
  * Governance Enforcement Agent using ADK
@@ -16,7 +17,7 @@ export async function initGovernanceAgent() {
   const built = createAgent({
     name: "governance_enforcement_agent",
     instructions: `You are the final safety authority for Chain Sentinel.
-Enforce strict security and financial safety rules.
+Enforce strict security and financial safety rules based on treasury risk policies.
 Block unsafe actions. Approve only protective ones.
 
 Return STRICT JSON ONLY:
@@ -31,7 +32,7 @@ Return STRICT JSON ONLY:
 
   governanceAgent = built;
   governanceRunner = built.runner;
-  console.log("✅ Governance Agent initialized (createAgent/Gemini)");
+  console.log("[governanceAgent] Initialized (createAgent/Gemini)");
 }
 
 export async function enforceGovernance(
@@ -39,20 +40,22 @@ export async function enforceGovernance(
     risk: RiskResult;
     plan: ProtectionPlan;
     totalUsdValue: number;
+    policy?: string;
   }
 ): Promise<GovernanceDecision> {
-  const { risk, plan, totalUsdValue } = input;
+  const { risk, plan, totalUsdValue, policy: policyName } = input;
+  const policy = getPolicy(policyName || 'CONSERVATIVE');
 
-  // HARD SAFETY RULE: Never override via LLM if HIGH risk on large treasury
-  if (risk.level === "HIGH" && totalUsdValue > 1_000_000) {
-    console.log("🚨 Hard safety rule triggered: HIGH risk + large treasury");
+  // HARD SAFETY RULE: Require manual multisig or block if high risk on significant treasury
+  if (risk.level === "HIGH" && (totalUsdValue > 1_000_000 || policy.requireMultiSigApproval)) {
+    console.log(`[governanceAgent] Hard safety rule triggered: HIGH risk on $${(totalUsdValue / 1e6).toFixed(2)}M treasury under ${policy.name} policy`);
     return {
       approved: false,
-      reason: "CRITICAL: High risk on large treasury. Manual intervention required.",
+      reason: `CRITICAL: High risk under ${policy.name} policy (${policy.requireMultiSigApproval ? 'Multi-Sig Required' : 'Exposure Limit Exceeded'}). Manual governance intervention required.`,
       enforcedActions: [
         {
           type: "ALERT",
-          message: "🔴 Governance blocked all automation due to critical risk."
+          message: `Governance blocked automated execution under ${policy.name} policy due to high risk threshold.`
         }
       ]
     };
@@ -66,6 +69,12 @@ export async function enforceGovernance(
 
     const prompt = `TASK: Make final safety approval decision for treasury.
 
+POLICY ENFORCEMENT:
+- Policy Name: ${policy.name}
+- Target Min Health Factor: ${policy.minHealthFactor}
+- Max Single Asset Concentration: ${policy.maxSingleAssetConcentrationPct}%
+- MultiSig Required for High Value: ${policy.requireMultiSigApproval}
+
 RISK SUMMARY:
 - Level: ${risk.level}
 - Score: ${risk.score}/100  
@@ -77,7 +86,7 @@ ${plan.actions.map((a, i) => `${i + 1}. ${a.type}: "${a.message}"`).join("\n")}
 ENFORCEMENT RULES:
 - HIGH risk + treasury >$1M = Block (safety override)
 - MEDIUM risk = Approve protective actions (REDUCE, DIVERSIFY, ALERT)
-- LOW risk = Approve most actions
+- LOW risk = Approve actions within policy guidelines
 - Never approve risky actions on large treasuries
 
 OUTPUT ONLY THIS JSON:
@@ -94,20 +103,20 @@ OUTPUT ONLY THIS JSON:
           response = typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
         }
       } catch (adkErr) {
-        console.warn("⚠️ ADK governance execution failed, falling back to Qwen:", adkErr);
+        console.warn("[governanceAgent] ADK governance execution failed, attempting fallback:", adkErr);
       }
     }
 
     if (!response) {
       response = await callQwenLLM(prompt);
     }
-    console.log("[DEBUG] Raw Governance LLM response:", response);
+    console.log("[governanceAgent] LLM response received");
 
     const parsed = extractJSON<GovernanceDecision>(response);
 
     // Validate and normalize
     if (parsed && typeof parsed.approved === "boolean") {
-      console.log(`✅ Governance decision from LLM: ${parsed.approved ? "APPROVED" : "BLOCKED"}`);
+      console.log(`[governanceAgent] Governance decision from LLM: ${parsed.approved ? "APPROVED" : "BLOCKED"}`);
       return {
         approved: parsed.approved,
         reason: parsed.reason || "No reason provided",
@@ -118,32 +127,32 @@ OUTPUT ONLY THIS JSON:
       };
     }
   } catch (err) {
-    console.warn("⚠️ LLM governance failed, using deterministic fallback:", err);
+    console.warn("[governanceAgent] LLM governance fallback activated:", err instanceof Error ? err.message : String(err));
   }
 
   // ADK-style deterministic fallback
   if (risk.level === "MEDIUM") {
-    console.log("✅ Governance decision from deterministic rule (MEDIUM risk)");
+    console.log(`[governanceAgent] Governance decision from deterministic rule (MEDIUM risk, ${policy.name} policy)`);
     return {
       approved: true,
-      reason: "Moderate risk detected. Safe actions approved.",
+      reason: `Moderate risk detected. Protective actions approved under ${policy.name} policy guidelines.`,
       enforcedActions: plan.actions.filter((a: any) => ["DIVERSIFY", "ALERT"].includes(a.type))
     };
   }
 
   if (risk.level === "LOW" || risk.tier === "SAFE") {
-    console.log("✅ Governance decision from deterministic rule (LOW risk)");
+    console.log(`[governanceAgent] Governance decision from deterministic rule (LOW risk, ${policy.name} policy)`);
     return {
       approved: true,
-      reason: "Low risk treasury. All protection actions approved.",
+      reason: `Low risk treasury. All protection actions approved under ${policy.name} policy.`,
       enforcedActions: plan.actions
     };
   }
 
-  console.log("✅ Governance decision from deterministic rule (fallback)");
+  console.log("[governanceAgent] Governance decision from deterministic rule (default fallback)");
   return {
     approved: false,
-    reason: "Unrecognized risk state. Governance blocked.",
+    reason: `Unrecognized risk state under ${policy.name} policy. Governance blocked automation.`,
     enforcedActions: [
       {
         type: "ALERT",

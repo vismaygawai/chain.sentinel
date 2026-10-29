@@ -12,3 +12,5 @@ export * from './lib/index.ts';
 export * from './data/index.ts';
 export * from './queues/index.ts';
 export * from './correlation/index.ts';
+export * from './schemas/index.ts';
+export * from './llm/LocalLLM.ts';

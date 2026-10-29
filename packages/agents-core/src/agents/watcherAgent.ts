@@ -61,7 +61,7 @@ export async function watchTreasury(address: string): Promise<TreasurySnapshot> 
           totalUsdValue += aaveData.totalCollateralUSD;
           positions.push({
             token: 'Aave V3 Collateral',
-            balance: aaveData.totalCollateralUSD,
+            balance: 1,
             usdValue: aaveData.totalCollateralUSD,
           });
         }

@@ -14,7 +14,7 @@
     "seed": "pnpm exec tsx scripts/seed-demo-data.ts",
     "deploy:atp": "pnpm exec tsx scripts/deploy-atp.ts",
     "export:codebase": "pnpm exec tsx scripts/export-codebase.ts",
-    "clean": "pnpm -r exec rm -rf node_modules dist .next"
+    "clean": "pnpm exec tsx scripts/clean.ts"
   },
   "keywords": [
     "defi",

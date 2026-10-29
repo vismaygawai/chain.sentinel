@@ -1,6 +1,7 @@
 'use client';
 
 import type { LiquidShieldPosition, RiskTier } from '@/types';
+import { formatCompactUSD } from '@/lib/api';
 
 interface PositionCardProps {
   position: LiquidShieldPosition;
@@ -8,13 +9,6 @@ interface PositionCardProps {
 
 function truncateAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-function formatUSD(value: string): string {
-  const num = parseFloat(value);
-  if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`;
-  if (num >= 1_000) return `$${(num / 1_000).toFixed(1)}K`;
-  return `$${num.toFixed(2)}`;
 }
 
 function getTierConfig(tier: RiskTier): { label: string; className: string } {
@@ -110,11 +104,11 @@ export default function PositionCard({ position }: PositionCardProps) {
       <div className="grid grid-cols-2 gap-3 pt-2 border-t-2 border-black font-mono text-xs">
         <div>
           <span className="text-gray-500 block text-[10px] uppercase">Collateral</span>
-          <span className="font-bold text-black">{formatUSD(latestSnapshot?.collateral || '0')}</span>
+          <span className="font-bold text-black">{formatCompactUSD(latestSnapshot?.collateral || '0')}</span>
         </div>
         <div>
           <span className="text-gray-500 block text-[10px] uppercase">Borrow Debt</span>
-          <span className="font-bold text-black">{formatUSD(latestSnapshot?.debt || '0')}</span>
+          <span className="font-bold text-black">{formatCompactUSD(latestSnapshot?.debt || '0')}</span>
         </div>
       </div>
 

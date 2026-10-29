@@ -41,8 +41,10 @@ export async function routeToCorrelator(alert: WhaleAlert): Promise<void> {
         token: alert.token,
         timestamp: alert.timestamp,
         txHash: alert.txHash,
+        intent: alert.intent,
+        label: alert.label || undefined,
     })
-    console.log(`[alertAgent] Routed alert to correlator: ${alert.txHash}`)
+    console.log(`[alertAgent] Routed alert to correlator: ${alert.txHash} (${alert.intent})`)
 }
 
 export const alertAgent = createAgent({

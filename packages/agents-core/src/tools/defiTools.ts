@@ -59,14 +59,9 @@ export async function fetchAaveUserAccountData(
     const finalThreshold = rawThreshold > 0 ? rawThreshold * 100 : 82.5;
     const finalLtv = ltvPct > 0 ? ltvPct * 100 : 75.0;
 
-    // Check demo Aave Whale (0x577da75775b0606b5d92582b1c67e9154b7c62c3)
-    if (normalizedAddress.toLowerCase() === '0x577da75775b0606b5d92582b1c67e9154b7c62c3'.toLowerCase() && finalDebtUSD === 0) {
-      finalCollateralUSD = 9420000;
-      finalDebtUSD = 5200000;
-      finalHF = 1.14;
-    } else if (finalDebtUSD === 0 || finalHF > 100 || !isFinite(finalHF)) {
-      // When a wallet has $0 debt, Aave returns uint256.max (1.1579e+59). Normalize to 99.9.
-      finalHF = 99.9;
+    if (finalDebtUSD === 0 || finalHF > 100 || !isFinite(finalHF)) {
+      // When a wallet has $0 debt, health factor is infinite / not applicable
+      finalHF = 0;
     }
 
     // Distance to liquidation: percentage fall in collateral before HF hits 1.0
@@ -83,21 +78,20 @@ export async function fetchAaveUserAccountData(
       currentLiquidationThreshold: finalThreshold,
       ltv: finalLtv,
       healthFactor: finalHF,
-      isAtRisk: finalHF < 1.3 && finalDebtUSD > 0,
+      isAtRisk: finalDebtUSD > 0 && finalHF < 1.3,
       distanceToLiquidationPct: distanceToLiquidation,
     };
   } catch {
-    // Deterministic fallback for mock / demo / offline scenarios
-    const fallbackHF = 1.45;
+    // Graceful fallback when wallet is unindexed or RPC call fails
     return {
-      totalCollateralUSD: 250000,
-      totalDebtUSD: 140000,
-      availableBorrowsUSD: 35000,
-      currentLiquidationThreshold: 82.5,
-      ltv: 75.0,
-      healthFactor: fallbackHF,
+      totalCollateralUSD: 0,
+      totalDebtUSD: 0,
+      availableBorrowsUSD: 0,
+      currentLiquidationThreshold: 0,
+      ltv: 0,
+      healthFactor: 0,
       isAtRisk: false,
-      distanceToLiquidationPct: 18.2,
+      distanceToLiquidationPct: 100,
     };
   }
 }
@@ -126,10 +120,13 @@ export function toPositionSnapshot(
   data: UserAccountData,
   protocol: string = 'aave-v3'
 ): PositionSnapshot {
-  const safeHF = !isFinite(data.healthFactor) || data.healthFactor > 100 ? 99.9 : data.healthFactor;
+  const safeHF =
+    data.totalDebtUSD > 0 && isFinite(data.healthFactor) && data.healthFactor > 0 && data.healthFactor <= 100
+      ? data.healthFactor.toFixed(4)
+      : '0.0000';
   return {
     walletAddress,
-    healthFactor: safeHF.toFixed(4),
+    healthFactor: safeHF,
     collateral: data.totalCollateralUSD.toFixed(2),
     debt: data.totalDebtUSD.toFixed(2),
     protocol,
