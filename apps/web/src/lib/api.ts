@@ -141,6 +141,26 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
+export function formatCompactUSD(value: number): string {
+  if (!isFinite(value) || isNaN(value)) return "$0.00";
+  const abs = Math.abs(value);
+  if (abs >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
+  return `$${value.toFixed(2)}`;
+}
+
+export function formatCompactNumber(value: number): string {
+  if (!isFinite(value) || isNaN(value)) return "0";
+  const abs = Math.abs(value);
+  if (abs >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `${(value / 1e3).toFixed(2)}K`;
+  return value < 0.0001 && value > 0
+    ? "<0.0001"
+    : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
+}
+
 export function formatTime(timestamp: string | number): string {
   const date = new Date(timestamp);
   return date.toLocaleTimeString("en-US", {
