@@ -1,4 +1,4 @@
-import { createAgent } from '../lib/agentFactory.ts';
+import { createAgent, type AgentInstance } from '../lib/agentFactory.ts';
 import type { RiskResult, ProtectionPlan } from "../types.ts";
 import { callQwenLLM, extractJSON } from "../tools/treasuryTools.ts";
 import { getPolicy } from "../policies/index.ts";
@@ -8,13 +8,12 @@ import { getPolicy } from "../policies/index.ts";
  * Generates mitigation strategies based on risk assessment and selected policy
  */
 
-let plannerAgent: any = null;
-let plannerRunner: any = null;
+let plannerAgent: AgentInstance | null = null;
 
 export async function initPlannerAgent() {
-  if (plannerAgent && plannerRunner) return;
+  if (plannerAgent) return;
 
-  const built = createAgent({
+  plannerAgent = createAgent({
     name: "protection_planner_agent",
     instructions: `You are a DeFi treasury protection strategist.
 Based on risk assessment and governance policy, create a protection plan using only:
@@ -30,8 +29,6 @@ Return STRICT JSON ONLY:
 }`
   });
 
-  plannerAgent = built;
-  plannerRunner = built.runner;
   console.log("[plannerAgent] Initialized (createAgent/Gemini)");
 }
 
@@ -43,7 +40,7 @@ export async function generateProtectionPlan(
 
   try {
     // Ensure agent is initialized
-    if (!plannerRunner) {
+    if (!plannerAgent) {
       await initPlannerAgent();
     }
 
@@ -76,15 +73,9 @@ OUTPUT ONLY THIS JSON:
 {"actions":[{"type":"ALERT"|"REDUCE"|"DIVERSIFY","message":"specific action description"}]}`;
 
     let response = '';
-    if (process.env.GEMINI_API_KEY && (plannerAgent || plannerRunner)) {
+    if (process.env.GEMINI_API_KEY && plannerAgent) {
       try {
-        if (typeof plannerAgent?.run === 'function') {
-          const res = await plannerAgent.run(prompt);
-          response = typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
-        } else if (typeof plannerRunner?.run === 'function') {
-          const res = await plannerRunner.run(prompt);
-          response = typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
-        }
+        response = await plannerAgent.ask(prompt);
       } catch (adkErr) {
         console.warn("[plannerAgent] ADK agent execution failed, attempting fallback:", adkErr);
       }

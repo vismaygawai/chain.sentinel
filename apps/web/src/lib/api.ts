@@ -3,58 +3,38 @@ import type { TreasuryScanResult, WalletInfo } from "@/types/index";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export async function runRiskScan(address: string, policy?: string): Promise<TreasuryScanResult> {
+  let res: Response;
   try {
-    const res = await fetch(`${API_BASE}/api/risk-scan`, {
+    res = await fetch(`${API_BASE}/api/risk-scan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address, policy }),
     });
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.snapshot || data?.risk) {
-        return {
-          snapshot: data.snapshot,
-          risk: {
-            ...data.risk,
-            tier: data.risk?.tier || (data.risk?.score > 70 ? "CRITICAL" : data.risk?.score > 40 ? "WARNING" : "SAFE"),
-          },
-          plan: data.plan || { actions: [] },
-          decision: data.governance || data.decision || {
-            approved: true,
-            reason: "Validated by Sentinel multi-agent core.",
-            enforcedActions: data.plan?.actions || [],
-          },
-        };
-      }
-    }
   } catch {
-    console.warn(`[ChainSentinel] Real-time scan endpoint ${API_BASE}/api/risk-scan unreachable. Check if API server is running on port 3001.`);
+    throw new Error(`Sentinel API unreachable at ${API_BASE}. Ensure backend service is running.`);
+  }
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => null);
+    throw new Error(errorBody?.error || errorBody?.message || `Scan failed with HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  if (!data?.snapshot && !data?.risk) {
+    throw new Error("Invalid telemetry payload received from Sentinel core");
   }
 
   return {
-    snapshot: {
-      address,
-      totalUsdValue: 0,
-      positions: [{ token: "ETH", balance: 0, usdValue: 0 }],
-    },
+    snapshot: data.snapshot,
     risk: {
-      address,
-      level: "LOW",
-      score: 10,
-      tier: "SAFE",
-      healthFactor: 0,
-      narrative: `Backend server at ${API_BASE} is offline. Start the backend with 'pnpm dev' to stream live Ethereum on-chain balances.`,
-      issues: ["Fastify API server is offline on port 3001"],
+      ...data.risk,
+      tier: data.risk?.tier || (data.risk?.score >= 85 ? "CRITICAL" : data.risk?.score >= 70 ? "DANGER" : data.risk?.score > 40 ? "WARNING" : "SAFE"),
     },
-    plan: {
-      actions: [
-        { type: "ALERT", message: "Run 'pnpm dev' to launch Fastify API & WebSocket server for live telemetry." },
-      ],
-    },
-    decision: {
-      approved: false,
-      reason: "Backend offline - start Fastify service (port 3001) for autonomous validation.",
-      enforcedActions: [],
+    plan: data.plan || { actions: [] },
+    decision: data.governance || data.decision || {
+      approved: true,
+      reason: "Validated by Sentinel multi-agent core.",
+      enforcedActions: data.plan?.actions || [],
     },
   };
 }

@@ -46,13 +46,31 @@ export const prisma = {
     create: async ({ data }: any) => {
       const db = readDB();
       if (!db.wallets) db.wallets = [];
+      const key = data.address?.toLowerCase();
       const existingIdx = db.wallets.findIndex(
-        (w: any) => w.address?.toLowerCase() === data.address?.toLowerCase()
+        (w: any) => w.address?.toLowerCase() === key
       );
       if (existingIdx >= 0) {
-        db.wallets[existingIdx] = { ...db.wallets[existingIdx], ...data };
+        const existing = db.wallets[existingIdx];
+        const existingTypes = new Set(
+          Array.isArray(existing.types) ? existing.types : [existing.type].filter(Boolean)
+        );
+        if (data.type) existingTypes.add(data.type);
+        db.wallets[existingIdx] = {
+          ...existing,
+          ...data,
+          types: Array.from(existingTypes),
+          isWhale: existingTypes.has('WHALE') || data.type === 'WHALE' || Boolean(existing.isWhale),
+          isPosition: existingTypes.has('POSITION') || data.type === 'POSITION' || Boolean(existing.isPosition),
+        };
       } else {
-        db.wallets.push(data);
+        const types = [data.type].filter(Boolean);
+        db.wallets.push({
+          ...data,
+          types,
+          isWhale: data.type === 'WHALE',
+          isPosition: data.type === 'POSITION',
+        });
       }
       writeDB(db);
       return data;

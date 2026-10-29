@@ -28,7 +28,7 @@ export interface RiskAssessment extends RiskResult {
 }
 
 export function deterministicScore(address: string, healthFactor?: number): RiskAssessment {
-  const hf = healthFactor && healthFactor > 0 ? healthFactor : 0;
+  const hf = healthFactor && healthFactor > 0 && isFinite(healthFactor) ? healthFactor : 0;
   const hasDebt = hf > 0;
   const tier = hasDebt ? classifyTier(hf) : 'SAFE';
   let score: number;

@@ -18,6 +18,7 @@ export interface UserAccountData {
   healthFactor: number;
   isAtRisk: boolean;
   distanceToLiquidationPct: number;
+  isError?: boolean;
 }
 
 /**
@@ -81,8 +82,8 @@ export async function fetchAaveUserAccountData(
       isAtRisk: finalDebtUSD > 0 && finalHF < 1.3,
       distanceToLiquidationPct: distanceToLiquidation,
     };
-  } catch {
-    // Graceful fallback when wallet is unindexed or RPC call fails
+  } catch (err: any) {
+    console.warn(`[defiTools] Failed to fetch Aave V3 data for ${walletAddress}:`, err?.message || err);
     return {
       totalCollateralUSD: 0,
       totalDebtUSD: 0,
@@ -92,6 +93,7 @@ export async function fetchAaveUserAccountData(
       healthFactor: 0,
       isAtRisk: false,
       distanceToLiquidationPct: 100,
+      isError: true,
     };
   }
 }
@@ -121,9 +123,11 @@ export function toPositionSnapshot(
   protocol: string = 'aave-v3'
 ): PositionSnapshot {
   const safeHF =
-    data.totalDebtUSD > 0 && isFinite(data.healthFactor) && data.healthFactor > 0 && data.healthFactor <= 100
+    data.isError
+      ? 'UNKNOWN'
+      : data.totalDebtUSD > 0 && isFinite(data.healthFactor) && data.healthFactor > 0 && data.healthFactor <= 100
       ? data.healthFactor.toFixed(4)
-      : '0.0000';
+      : 'Infinity';
   return {
     walletAddress,
     healthFactor: safeHF,

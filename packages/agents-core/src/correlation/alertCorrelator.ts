@@ -55,9 +55,13 @@ function determineUrgency(
     isCorrelated: boolean,
     snapshot?: PositionSnapshot,
 ): CompoundAlert['combinedUrgency'] {
-    if (isCorrelated) return 'CRITICAL';
-    if (snapshot) {
-        const hf = parseFloat(snapshot.healthFactor);
+    const hf = snapshot ? parseFloat(snapshot.healthFactor) : NaN;
+    if (isCorrelated) {
+        if (!isNaN(hf) && hf < 1.3) return 'CRITICAL';
+        if (!isNaN(hf) && hf < 2.0) return 'HIGH';
+        return 'MEDIUM';
+    }
+    if (!isNaN(hf)) {
         if (hf < 1.1) return 'CRITICAL';
         if (hf < 1.3) return 'HIGH';
         if (hf < 2.0) return 'MEDIUM';

@@ -31,14 +31,34 @@ export function useLiveFeed() {
                     // Broadcast format: { type: "WHALE"|"LIQUIDATION"|"COMPOUND", alert: {...}, timestamp: ISO }
                     if (data.alert) {
                         setAlerts((prev) => {
-                            // Check for duplicates (by txHash or txHash + address)
-                            const isDuplicate = prev.some(a => 
-                                (a.wwAlert?.txHash && a.wwAlert?.txHash === data.alert.wwAlert?.txHash) ||
-                                (a.walletAddress === data.alert.walletAddress && 
-                                 JSON.stringify(a.lsAlert) === JSON.stringify(data.alert.lsAlert))
-                            )
-                            if (isDuplicate) return prev
-                            return [data.alert, ...prev].slice(0, 50)
+                            const incoming = data.alert as CompoundAlert;
+                            const incomingTx = incoming.wwAlert?.txHash;
+                            // If incoming is a correlated compound alert, upgrade any existing alert for this address or txHash
+                            if (incoming.isCorrelated) {
+                                const filtered = prev.filter(a =>
+                                    !(incomingTx && a.wwAlert?.txHash === incomingTx) &&
+                                    !(a.walletAddress?.toLowerCase() === incoming.walletAddress?.toLowerCase() && !a.isCorrelated)
+                                );
+                                return [incoming, ...filtered].slice(0, 50);
+                            }
+
+                            // If incoming has a txHash, check if that exact transaction was already alerted
+                            if (incomingTx) {
+                                const exists = prev.some(a => a.wwAlert?.txHash === incomingTx);
+                                if (exists) return prev;
+                            }
+
+                            // If incoming is a pure liquidation snapshot, deduplicate by address and timestamp
+                            const incomingLsTs = incoming.lsAlert?.timestamp;
+                            if (incoming.lsAlert && !incoming.wwAlert && incomingLsTs) {
+                                const exists = prev.some(a =>
+                                    a.walletAddress?.toLowerCase() === incoming.walletAddress?.toLowerCase() &&
+                                    a.lsAlert?.timestamp === incomingLsTs
+                                );
+                                if (exists) return prev;
+                            }
+
+                            return [incoming, ...prev].slice(0, 50);
                         })
                     }
                 } catch (err) {

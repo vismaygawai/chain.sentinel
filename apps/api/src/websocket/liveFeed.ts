@@ -71,6 +71,13 @@ export async function registerLiveFeed(fastify: FastifyInstance): Promise<void> 
     const handleConnection = (socket: any, _request: any) => {
         connectedClients.add(socket);
 
+        // Instantly replay recent alerts buffer to newly connected client
+        try {
+            replayTo(socket);
+        } catch {
+            // Socket might have closed before replay
+        }
+
         socket.isAlive = true;
         socket.on('pong', () => { socket.isAlive = true; });
 

@@ -59,6 +59,9 @@ export async function watchTreasury(address: string): Promise<TreasurySnapshot> 
         const aaveData = await fetchAaveUserAccountData(normalizedAddress, provider);
         if (aaveData.totalCollateralUSD > 0) {
           totalUsdValue += aaveData.totalCollateralUSD;
+          if (aaveData.totalDebtUSD > 0) {
+            totalUsdValue = Math.max(0, totalUsdValue - aaveData.totalDebtUSD);
+          }
           positions.push({
             token: 'Aave V3 Collateral',
             balance: 1,

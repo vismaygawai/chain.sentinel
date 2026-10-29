@@ -16,11 +16,20 @@ export async function evaluateAlert(
     confidence: number,
 ): Promise<LSGovernanceDecision> {
     if (healthFactor < 1.1 && LS_POLICIES.CRITICAL_OVERRIDE) {
+        const onCriticalCooldown = await alertCooldown.isCooledDown(`${PIPELINE}:critical`, address);
+        if (onCriticalCooldown) {
+            return {
+                allowed: false,
+                reason: `Address ${address} is on critical alert cooldown`,
+                criticalOverride: true,
+            };
+        }
+        await alertCooldown.setCooldown(`${PIPELINE}:critical`, address, 60_000);
         return {
             allowed: true,
-            reason: `CRITICAL_OVERRIDE: HF ${healthFactor.toFixed(4)} < 1.1 — all gates bypassed`,
+            reason: `CRITICAL_OVERRIDE: HF ${healthFactor.toFixed(4)} < 1.1 — emergency alert dispatched`,
             criticalOverride: true,
-        }
+        };
     }
 
     if (confidence < LS_POLICIES.MIN_CONFIDENCE) {

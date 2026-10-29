@@ -11,10 +11,11 @@ export const SUPPORTED_CHAINS: Record<string, ChainConfig> = {
     chainId: 1,
     name: 'Ethereum Mainnet',
     rpcUrls: [
-      ...(process.env.ALCHEMY_API_KEY && process.env.ALCHEMY_API_KEY !== 'your_alchemy_api_key_here'
+      ...(process.env.ALCHEMY_API_KEY &&
+      !process.env.ALCHEMY_API_KEY.includes('your_alchemy')
         ? [`https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`]
         : []),
-      process.env.RPC_URL || 'https://ethereum.publicnode.com',
+      process.env.RPC_URL || process.env.ETH_RPC_URL || 'https://ethereum.publicnode.com',
       'https://eth.llamarpc.com',
       'https://cloudflare-eth.com',
       'https://rpc.ankr.com/eth',
@@ -46,6 +47,15 @@ export const SUPPORTED_CHAINS: Record<string, ChainConfig> = {
   },
 };
 
+function sanitizeRpcUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.hostname}`;
+  } catch {
+    return 'invalid-endpoint';
+  }
+}
+
 /**
  * Resilient JSON-RPC Provider Failover
  * Attempts queries through ordered pool of public and private RPC endpoints
@@ -70,7 +80,7 @@ export async function withResilientProvider<T>(
       return result;
     } catch (err) {
       lastError = err;
-      console.warn(`[rpcTools] RPC ${url} failed on ${config.name}, falling back to next...`);
+      console.warn(`[rpcTools] RPC ${sanitizeRpcUrl(url)} failed on ${config.name}, falling back to next...`);
     }
   }
 
@@ -85,5 +95,7 @@ export async function withResilientProvider<T>(
 export function getProvider(chain: keyof typeof SUPPORTED_CHAINS = 'ethereum'): ethers.JsonRpcProvider {
   const config = SUPPORTED_CHAINS[chain] || SUPPORTED_CHAINS.ethereum;
   const primaryUrl = config.rpcUrls[0];
-  return new ethers.JsonRpcProvider(primaryUrl);
+  return new ethers.JsonRpcProvider(primaryUrl, undefined, {
+    staticNetwork: ethers.Network.from(config.chainId),
+  });
 }

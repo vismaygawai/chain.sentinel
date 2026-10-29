@@ -1,4 +1,4 @@
-import { createAgent } from '../lib/agentFactory.ts';
+import { createAgent, type AgentInstance } from '../lib/agentFactory.ts';
 import type { RiskResult, ProtectionPlan, GovernanceDecision } from "../types.ts";
 import { callQwenLLM, extractJSON } from "../tools/treasuryTools.ts";
 import { getPolicy } from "../policies/index.ts";
@@ -8,13 +8,12 @@ import { getPolicy } from "../policies/index.ts";
  * Applies hard safety rules + LLM-based policy enforcement
  */
 
-let governanceAgent: any = null;
-let governanceRunner: any = null;
+let governanceAgent: AgentInstance | null = null;
 
 export async function initGovernanceAgent() {
-  if (governanceAgent && governanceRunner) return;
+  if (governanceAgent) return;
 
-  const built = createAgent({
+  governanceAgent = createAgent({
     name: "governance_enforcement_agent",
     instructions: `You are the final safety authority for Chain Sentinel.
 Enforce strict security and financial safety rules based on treasury risk policies.
@@ -30,8 +29,6 @@ Return STRICT JSON ONLY:
 }`
   });
 
-  governanceAgent = built;
-  governanceRunner = built.runner;
   console.log("[governanceAgent] Initialized (createAgent/Gemini)");
 }
 
@@ -46,16 +43,20 @@ export async function enforceGovernance(
   const { risk, plan, totalUsdValue, policy: policyName } = input;
   const policy = getPolicy(policyName || 'CONSERVATIVE');
 
-  // HARD SAFETY RULE: Require manual multisig or block if high risk on significant treasury
-  if (risk.level === "HIGH" && (totalUsdValue > 1_000_000 || policy.requireMultiSigApproval)) {
+  // HARD SAFETY RULE: When HIGH risk on large treasury, enforce mandatory defensive actions
+  if (risk.level === "HIGH" && totalUsdValue > 1_000_000) {
     console.log(`[governanceAgent] Hard safety rule triggered: HIGH risk on $${(totalUsdValue / 1e6).toFixed(2)}M treasury under ${policy.name} policy`);
     return {
-      approved: false,
-      reason: `CRITICAL: High risk under ${policy.name} policy (${policy.requireMultiSigApproval ? 'Multi-Sig Required' : 'Exposure Limit Exceeded'}). Manual governance intervention required.`,
+      approved: true, // Emergency actions locked in and approved
+      reason: `Hard safety rule activated: Critical risk detected on $${(totalUsdValue / 1e6).toFixed(2)}M treasury. Mandatory defensive actions locked in under ${policy.name} policy.`,
       enforcedActions: [
         {
+          type: "REDUCE",
+          message: `Mandatory risk reduction: de-risk top concentrated exposure to within ${policy.maxSingleAssetConcentrationPct}% of treasury.`
+        },
+        {
           type: "ALERT",
-          message: `Governance blocked automated execution under ${policy.name} policy due to high risk threshold.`
+          message: `Emergency escalation: High risk threshold exceeded under ${policy.name} governance policy.`
         }
       ]
     };
@@ -63,7 +64,7 @@ export async function enforceGovernance(
 
   try {
     // Ensure agent is initialized
-    if (!governanceRunner) {
+    if (!governanceAgent) {
       await initGovernanceAgent();
     }
 
@@ -93,15 +94,9 @@ OUTPUT ONLY THIS JSON:
 {"approved":true|false,"reason":"brief explanation of decision","enforcedActions":[{"type":"ALERT"|"REDUCE"|"DIVERSIFY","message":"action to enforce"}]}`;
 
     let response = '';
-    if (process.env.GEMINI_API_KEY && (governanceAgent || governanceRunner)) {
+    if (process.env.GEMINI_API_KEY && governanceAgent) {
       try {
-        if (typeof governanceAgent?.run === 'function') {
-          const res = await governanceAgent.run(prompt);
-          response = typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
-        } else if (typeof governanceRunner?.run === 'function') {
-          const res = await governanceRunner.run(prompt);
-          response = typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
-        }
+        response = await governanceAgent.ask(prompt);
       } catch (adkErr) {
         console.warn("[governanceAgent] ADK governance execution failed, attempting fallback:", adkErr);
       }

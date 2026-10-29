@@ -116,14 +116,66 @@ export async function getTokenPriceUSD(symbol: string): Promise<number> {
 }
 
 /**
- * Batch price lookup
+ * Batch price lookup with single aggregated CoinGecko request
  */
 export async function getBatchPrices(symbols: string[]): Promise<Record<string, number>> {
   const result: Record<string, number> = {};
-  await Promise.all(
-    symbols.map(async (s) => {
-      result[s] = await getTokenPriceUSD(s);
-    })
-  );
+  const neededCoinIds = new Set<string>();
+  const idToSymbols = new Map<string, string[]>();
+
+  for (const rawSym of symbols) {
+    const sym = rawSym.toUpperCase();
+    const cached = priceCache.get(sym);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      result[sym] = cached.priceUSD;
+      continue;
+    }
+    const coinId = COINGECKO_ID_MAP[sym];
+    if (coinId) {
+      neededCoinIds.add(coinId);
+      const list = idToSymbols.get(coinId) || [];
+      list.push(sym);
+      idToSymbols.set(coinId, list);
+    } else {
+      result[sym] = FALLBACK_PRICES[sym] ?? (KNOWN_STABLECOINS.has(sym) ? 1.0 : 0);
+    }
+  }
+
+  if (neededCoinIds.size > 0) {
+    try {
+      const idsParam = Array.from(neededCoinIds).join(',');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd`,
+        { signal: controller.signal }
+      );
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = (await res.json()) as Record<string, { usd: number }>;
+        for (const [coinId, syms] of idToSymbols.entries()) {
+          const price = data[coinId]?.usd;
+          if (price && price > 0) {
+            for (const sym of syms) {
+              priceCache.set(sym, { priceUSD: price, timestamp: Date.now() });
+              result[sym] = price;
+            }
+          }
+        }
+      }
+    } catch {
+      // CoinGecko batch failed, fallbacks will be used below
+    }
+  }
+
+  // Populate any remaining symbols with individual fallback/cache
+  for (const rawSym of symbols) {
+    const sym = rawSym.toUpperCase();
+    if (result[sym] === undefined) {
+      result[sym] = await getTokenPriceUSD(sym);
+    }
+  }
+
   return result;
 }

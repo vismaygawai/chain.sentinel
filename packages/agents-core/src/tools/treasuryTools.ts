@@ -69,7 +69,7 @@ export async function callQwenLLM(prompt: string, retries: number = 1): Promise<
     throw new Error("QWEN_API_URL not configured");
   }
 
-  const timeout = 2500;
+  const timeout = 8000;
 
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
@@ -85,8 +85,10 @@ export async function callQwenLLM(prompt: string, retries: number = 1): Promise<
           model: "qwen2.5:0.5b",
           prompt,
           stream: false,
-          temperature: 0.3,
-          top_p: 0.8
+          options: {
+            temperature: 0.3,
+            top_p: 0.8,
+          },
         }),
         signal: controller.signal
       });

@@ -24,6 +24,7 @@ function formatUSD(value: string | number): string {
 }
 
 function formatTimestamp(timestamp: number): string {
+  if (!timestamp || timestamp <= 0) return 'JUST NOW';
   const diffMs = Date.now() - timestamp;
   const diffMin = Math.floor(diffMs / 60_000);
 

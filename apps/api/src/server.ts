@@ -11,6 +11,7 @@ import { atpRoutes } from './routes/atp.ts';
 
 export async function buildServer(): Promise<FastifyInstance> {
   const server = Fastify({
+    trustProxy: true,
     logger: {
       level: ENV.NODE_ENV === 'development' ? 'info' : 'warn',
     },

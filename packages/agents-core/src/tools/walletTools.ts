@@ -16,7 +16,7 @@ async function getLatestBlock(url: string): Promise<bigint> {
     const json: any = await res.json();
     if (json.result) return BigInt(json.result);
   } catch {}
-  return 20000000n;
+  return 0n;
 }
 
 export function subscribeToLargeTransactions(
@@ -36,6 +36,7 @@ export function subscribeToLargeTransactions(
   const pollInterval = setInterval(async () => {
     try {
       const currentBlock = await getLatestBlock(url);
+      if (currentBlock === 0n) return;
       if (lastCheckedBlock === 0n) {
         lastCheckedBlock = currentBlock > 1n ? currentBlock - 1n : currentBlock;
         return;
@@ -44,7 +45,6 @@ export function subscribeToLargeTransactions(
 
       const fromBlock = '0x' + (lastCheckedBlock + 1n).toString(16);
       const toBlock = '0x' + currentBlock.toString(16);
-      lastCheckedBlock = currentBlock;
 
       const res = await fetch(url, {
         method: 'POST',
@@ -66,6 +66,9 @@ export function subscribeToLargeTransactions(
 
       const data: any = await res.json();
       const transfers = data?.result?.transfers || [];
+      // Advance lastCheckedBlock only after successful fetch
+      lastCheckedBlock = currentBlock;
+
       for (const t of transfers) {
         const val = Number(t.value || 0);
         const asset = (t.asset || 'ETH').toUpperCase();
@@ -76,8 +79,9 @@ export function subscribeToLargeTransactions(
 
         if (usdValue >= minUSD) {
           const targetAddr = t.from || t.to;
-          const knownFrom = lookupKnownAddress(t.from);
-          const knownTo = lookupKnownAddress(t.to);
+          if (!targetAddr) continue;
+          const knownFrom = t.from ? lookupKnownAddress(t.from) : null;
+          const knownTo = t.to ? lookupKnownAddress(t.to) : null;
           const isAccumulation = Boolean(knownTo && !knownFrom);
 
           callback({

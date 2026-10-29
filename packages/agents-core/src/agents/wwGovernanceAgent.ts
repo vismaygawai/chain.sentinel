@@ -29,12 +29,12 @@ export async function evaluateAlert(
         }
     }
 
-    const history = await walletHistory.getHistory(address)
-    if (history.length < 5) {
+    const history = await walletHistory.getHistory(address);
+    if (history.length === 0) {
         return {
             allowed: false,
-            reason: 'Building baseline',
-        }
+            reason: 'Building baseline: awaiting first verified transaction',
+        };
     }
 
     await alertCooldown.setCooldown(PIPELINE, address, WW_POLICIES.COOLDOWN_MS)

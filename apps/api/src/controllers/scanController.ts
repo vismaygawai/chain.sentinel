@@ -19,8 +19,21 @@ export class ScanController {
       return reply.status(400).send({ error: 'A valid EVM Ethereum address is required' });
     }
 
+    const VALID_POLICIES = new Set(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE']);
+    if (policy && !VALID_POLICIES.has(String(policy).toUpperCase())) {
+      return reply.status(400).send({
+        error: `Invalid policy '${policy}'. Allowed policies: CONSERVATIVE, BALANCED, AGGRESSIVE`,
+      });
+    }
+
     try {
       const result = await treasuryService.scanTreasury(address, policy);
+      if (!result || !result.snapshot) {
+        return reply.status(502).send({
+          error: 'On-chain telemetry unavailable: RPC providers failed or treasury unreadable',
+          details: (result as any)?.error || 'All RPC endpoints failed',
+        });
+      }
       return reply.send(result);
     } catch (err: any) {
       request.log.error(err);

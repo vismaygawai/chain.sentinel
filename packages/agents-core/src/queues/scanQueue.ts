@@ -26,22 +26,25 @@ export interface QueueEntry {
 
 const queue: Map<string, QueueEntry> = new Map()
 
-export function classifyTier(healthFactor: number): RiskTier {
-    if (healthFactor < 1.1) return 'CRITICAL'
-    if (healthFactor < 1.3) return 'DANGER'
-    if (healthFactor < 2.0) return 'WARNING'
-    return 'SAFE'
+export function classifyTier(healthFactor: number | null | undefined): RiskTier {
+    if (healthFactor === null || healthFactor === undefined || !isFinite(healthFactor) || healthFactor <= 0) {
+        return 'SAFE';
+    }
+    if (healthFactor < 1.1) return 'CRITICAL';
+    if (healthFactor < 1.3) return 'DANGER';
+    if (healthFactor < 2.0) return 'WARNING';
+    return 'SAFE';
 }
 
-export function enqueue(address: string, healthFactor: number): void {
-    const tier = classifyTier(healthFactor)
-    const intervalMs = TIER_INTERVALS[tier]
+export function enqueue(address: string, healthFactor: number | null | undefined): void {
+    const tier = classifyTier(healthFactor);
+    const intervalMs = TIER_INTERVALS[tier];
     queue.set(address.toLowerCase(), {
         address: address.toLowerCase(),
         tier,
         intervalMs,
         nextScanAt: Date.now(),
-    })
+    });
 }
 
 export function dequeueNext(): QueueEntry | undefined {
@@ -61,7 +64,7 @@ export function dequeueNext(): QueueEntry | undefined {
     return earliest
 }
 
-export function updateTier(address: string, healthFactor: number): void {
+export function updateTier(address: string, healthFactor: number | null | undefined): void {
     const key = address.toLowerCase()
     const existing = queue.get(key)
     const newTier = classifyTier(healthFactor)

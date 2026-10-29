@@ -36,17 +36,19 @@ export default function PositionCard({ position }: PositionCardProps) {
   const latestSnapshot = position.snapshots?.[0];
   const hf = latestSnapshot ? parseFloat(latestSnapshot.healthFactor) : 0;
   const debtVal = parseFloat(latestSnapshot?.debt || '0');
-  const isNoDebt = debtVal === 0 || hf > 100 || !isFinite(hf);
+  const isUnknown = latestSnapshot?.healthFactor === 'UNKNOWN' || (Boolean(latestSnapshot) && isNaN(hf));
+  const isNoDebt = !isUnknown && (debtVal === 0 || hf > 100 || !isFinite(hf));
 
   let tier: RiskTier;
-  if (isNoDebt) tier = 'SAFE';
+  if (isUnknown) tier = 'WARNING';
+  else if (isNoDebt) tier = 'SAFE';
   else if (hf < 1.1) tier = 'CRITICAL';
   else if (hf < 1.3) tier = 'DANGER';
   else if (hf < 2.0) tier = 'WARNING';
   else tier = 'SAFE';
 
   const tierConfig = getTierConfig(tier);
-  const gaugeFill = isNoDebt ? 100 : calculateGaugeFill(hf);
+  const gaugeFill = isUnknown ? 50 : isNoDebt ? 100 : calculateGaugeFill(hf);
 
   return (
     <div
@@ -72,11 +74,16 @@ export default function PositionCard({ position }: PositionCardProps) {
         </div>
         <div className="flex items-baseline justify-center gap-2 max-w-full">
           <span className="font-display text-4xl font-black text-black">
-            {isNoDebt ? '∞' : hf > 0 ? hf.toFixed(2) : '—'}
+            {isUnknown ? 'UNKNOWN' : isNoDebt ? '∞' : hf > 0 ? hf.toFixed(2) : '—'}
           </span>
           {isNoDebt && (
             <span className="font-mono text-[10px] font-bold text-gray-600 uppercase tracking-wider bg-gray-100 border border-black px-1.5 py-0.5">
               NO DEBT
+            </span>
+          )}
+          {isUnknown && (
+            <span className="font-mono text-[10px] font-bold text-yellow-800 uppercase tracking-wider bg-yellow-100 border border-yellow-700 px-1.5 py-0.5">
+              RPC UNREACHABLE
             </span>
           )}
         </div>

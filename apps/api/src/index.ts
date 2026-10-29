@@ -31,10 +31,22 @@ const start = async () => {
       const dbWallets = await prisma.wallet.findMany();
       for (const wallet of dbWallets) {
         if (isAddress(wallet.address)) {
-          if (wallet.type === 'WHALE' || wallet.type === 'CEX_EXCHANGE' || wallet.type === 'DAO_TREASURY') {
+          const isWhaleTarget =
+            wallet.isWhale ||
+            wallet.type === 'WHALE' ||
+            wallet.type === 'CEX_EXCHANGE' ||
+            wallet.type === 'DAO_TREASURY' ||
+            wallet.types?.includes('WHALE');
+          const isPositionTarget =
+            wallet.isPosition ||
+            wallet.type === 'POSITION' ||
+            wallet.type === 'WHALE_BORROWER' ||
+            wallet.types?.includes('POSITION');
+
+          if (isWhaleTarget) {
             await watchWalletWorkflow.registerWallet(wallet.address);
           }
-          if (wallet.type === 'POSITION' || wallet.type === 'WHALE_BORROWER') {
+          if (isPositionTarget) {
             await scanPositionWorkflow.registerPosition(wallet.address);
           }
         }

@@ -67,17 +67,21 @@ export async function runTreasuryWorkflow(address: string, policy?: string) {
     };
 
     return {
+      error: err instanceof Error ? err.message : String(err),
       snapshot: null,
       risk: {
-        level: "HIGH",
-        score: 0,
-        issues: ["System failure during treasury analysis"]
+        address,
+        level: "HIGH" as const,
+        score: 100,
+        tier: "CRITICAL" as const,
+        narrative: "Internal telemetry failure: unable to establish secure on-chain consensus.",
+        issues: ["System failure during treasury analysis: " + (err instanceof Error ? err.message : String(err))]
       },
       plan: {
         actions: [
           {
             type: "ALERT",
-            message: "Emergency mode: treasury analysis unavailable."
+            message: "Emergency mode: treasury analysis unavailable. Manual review required."
           }
         ]
       },

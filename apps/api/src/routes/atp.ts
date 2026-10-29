@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import crypto from 'crypto';
 import { isAddress } from 'ethers';
 import { atpService } from '../services/atpService.ts';
 import { ENV } from '../config/env.ts';
@@ -15,19 +16,46 @@ export async function atpRoutes(server: FastifyInstance) {
     return atpService.getAgentMetadata();
   });
 
-  // Register New Agent Tokenization Instance
-  server.post<{ Body: AtpRegisterRequestBody }>('/api/atp/register', async (request, reply) => {
-    if (ENV.ATP_API_KEY) {
-      const apiKeyHeader = request.headers['x-api-key'];
-      if (apiKeyHeader !== ENV.ATP_API_KEY) {
-        return reply.status(401).send({ error: 'Unauthorized: Invalid or missing x-api-key header' });
+  // Register New Agent Tokenization Instance (Protected with constant-time API key verification)
+  server.post<{ Body: AtpRegisterRequestBody }>(
+    '/api/atp/register',
+    {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: '1 minute',
+        },
+      },
+    },
+    async (request, reply) => {
+      if (!ENV.ATP_API_KEY) {
+        return reply.status(503).send({
+          error: 'ATP registration disabled: server ATP_API_KEY is not configured',
+        });
       }
+
+      const apiKeyHeader = request.headers['x-api-key'];
+      if (typeof apiKeyHeader !== 'string') {
+        return reply.status(401).send({ error: 'Unauthorized: Missing x-api-key header' });
+      }
+
+      const keyBuffer = Buffer.from(apiKeyHeader);
+      const expectedBuffer = Buffer.from(ENV.ATP_API_KEY);
+      if (
+        keyBuffer.length !== expectedBuffer.length ||
+        !crypto.timingSafeEqual(keyBuffer, expectedBuffer)
+      ) {
+        return reply.status(401).send({ error: 'Unauthorized: Invalid x-api-key header' });
+      }
+
+      const body = request.body;
+      if (!body || !body.treasuryAddress || !isAddress(body.treasuryAddress)) {
+        return reply.status(400).send({
+          error: 'A valid EVM treasury address is required for ATP registration',
+        });
+      }
+      const registered = await atpService.registerAgent(body);
+      return reply.status(201).send(registered);
     }
-    const body = request.body;
-    if (!body || !body.treasuryAddress || !isAddress(body.treasuryAddress)) {
-      return reply.status(400).send({ error: 'A valid EVM treasury address is required for ATP registration' });
-    }
-    const registered = await atpService.registerAgent(body);
-    return reply.status(201).send(registered);
-  });
+  );
 }

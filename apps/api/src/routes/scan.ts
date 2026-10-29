@@ -12,15 +12,48 @@ import type {
 } from '../types/api.ts';
 
 export async function scanRoutes(server: FastifyInstance) {
-  // Treasury Risk Scan
-  server.post<{ Body: RiskScanRequestBody }>('/api/risk-scan', ScanController.runRiskScan);
+  // Treasury Risk Scan (stricter per-client rate limit for heavy RPC/ADK pipeline)
+  server.post<{ Body: RiskScanRequestBody }>(
+    '/api/risk-scan',
+    {
+      config: {
+        rateLimit: {
+          max: 20,
+          timeWindow: '1 minute',
+        },
+      },
+    },
+    ScanController.runRiskScan
+  );
 
   // WhaleWatch Registration & Alerts
-  server.post<{ Body: WhaleRegisterRequestBody }>('/whale', ScanController.registerWhale);
+  server.post<{ Body: WhaleRegisterRequestBody }>(
+    '/whale',
+    {
+      config: {
+        rateLimit: {
+          max: 20,
+          timeWindow: '1 minute',
+        },
+      },
+    },
+    ScanController.registerWhale
+  );
   server.get<{ Querystring: AlertsQuery }>('/alerts', ScanController.getAlerts);
 
   // LiquidShield Registration & Health Snapshots
-  server.post<{ Body: PositionRegisterRequestBody }>('/position', ScanController.registerPosition);
+  server.post<{ Body: PositionRegisterRequestBody }>(
+    '/position',
+    {
+      config: {
+        rateLimit: {
+          max: 20,
+          timeWindow: '1 minute',
+        },
+      },
+    },
+    ScanController.registerPosition
+  );
   server.get<{ Querystring: HealthQuery }>('/position/health', ScanController.getHealth);
 
   // Monitored Workflows Overview

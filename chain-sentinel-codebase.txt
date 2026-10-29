@@ -1,6 +1,6 @@
 ================================================================================
 CHAIN SENTINEL - FULL CODEBASE & SPECIFICATIONS EXPORT
-Generated: 2026-10-29T13:16:47.704Z
+Generated: 2026-10-29T13:56:15.173Z
 Repository: https://github.com/vismaygawai/chain.sentinel
 Live Web Dashboard: https://chain-sentinel-web.vercel.app/
 Live API Service: https://chain-sentinel.onrender.com/
@@ -104,29 +104,31 @@ TABLE OF CONTENTS & FILE INDEX:
  93. packages/agents-core/src/queues/index.ts
  94. packages/agents-core/src/queues/scanQueue.ts
  95. packages/agents-core/src/redis.ts
- 96. packages/agents-core/src/schemas/riskSignal.schema.json
- 97. packages/agents-core/src/test.ts
- 98. packages/agents-core/src/tools/aaveTools.ts
- 99. packages/agents-core/src/tools/defiTools.ts
-100. packages/agents-core/src/tools/index.ts
-101. packages/agents-core/src/tools/priceTools.ts
-102. packages/agents-core/src/tools/rpcTools.ts
-103. packages/agents-core/src/tools/treasuryTools.ts
-104. packages/agents-core/src/tools/walletTools.ts
-105. packages/agents-core/src/types.ts
-106. packages/agents-core/src/workflows/index.ts
-107. packages/agents-core/src/workflows/scanPositionWorkflow.ts
-108. packages/agents-core/src/workflows/treasuryWorkflow.ts
-109. packages/agents-core/src/workflows/watchWalletWorkflow.ts
-110. packages/agents-core/tsconfig.json
-111. pnpm-workspace.yaml
-112. render.yaml
-113. scripts/build-all.ts
-114. scripts/check-node.js
-115. scripts/deploy-atp.ts
-116. scripts/export-codebase.ts
-117. scripts/seed-demo-data.ts
-118. tsconfig.base.json
+ 96. packages/agents-core/src/schemas/index.ts
+ 97. packages/agents-core/src/schemas/riskSignal.schema.json
+ 98. packages/agents-core/src/test.ts
+ 99. packages/agents-core/src/tools/aaveTools.ts
+100. packages/agents-core/src/tools/defiTools.ts
+101. packages/agents-core/src/tools/index.ts
+102. packages/agents-core/src/tools/priceTools.ts
+103. packages/agents-core/src/tools/rpcTools.ts
+104. packages/agents-core/src/tools/treasuryTools.ts
+105. packages/agents-core/src/tools/walletTools.ts
+106. packages/agents-core/src/types.ts
+107. packages/agents-core/src/workflows/index.ts
+108. packages/agents-core/src/workflows/scanPositionWorkflow.ts
+109. packages/agents-core/src/workflows/treasuryWorkflow.ts
+110. packages/agents-core/src/workflows/watchWalletWorkflow.ts
+111. packages/agents-core/tsconfig.json
+112. pnpm-workspace.yaml
+113. render.yaml
+114. scripts/build-all.ts
+115. scripts/check-node.js
+116. scripts/clean.ts
+117. scripts/deploy-atp.ts
+118. scripts/export-codebase.ts
+119. scripts/seed-demo-data.ts
+120. tsconfig.base.json
 --------------------------------------------------------------------------------
 
 
@@ -810,7 +812,7 @@ export const MONITORED_TOKENS: TokenInfo[] = [
 
 
 ================================================================================
-FILE: apps/api/src/controllers/scanController.ts (90 lines)
+FILE: apps/api/src/controllers/scanController.ts (103 lines)
 ================================================================================
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { isAddress } from 'ethers';
@@ -833,8 +835,21 @@ export class ScanController {
       return reply.status(400).send({ error: 'A valid EVM Ethereum address is required' });
     }
 
+    const VALID_POLICIES = new Set(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE']);
+    if (policy && !VALID_POLICIES.has(String(policy).toUpperCase())) {
+      return reply.status(400).send({
+        error: `Invalid policy '${policy}'. Allowed policies: CONSERVATIVE, BALANCED, AGGRESSIVE`,
+      });
+    }
+
     try {
       const result = await treasuryService.scanTreasury(address, policy);
+      if (!result || !result.snapshot) {
+        return reply.status(502).send({
+          error: 'On-chain telemetry unavailable: RPC providers failed or treasury unreadable',
+          details: (result as any)?.error || 'All RPC endpoints failed',
+        });
+      }
       return reply.send(result);
     } catch (err: any) {
       request.log.error(err);
@@ -905,7 +920,7 @@ export class ScanController {
 
 
 ================================================================================
-FILE: apps/api/src/index.ts (64 lines)
+FILE: apps/api/src/index.ts (76 lines)
 ================================================================================
 import { isAddress } from 'ethers';
 import { ENV } from './config/env.ts';
@@ -940,10 +955,22 @@ const start = async () => {
       const dbWallets = await prisma.wallet.findMany();
       for (const wallet of dbWallets) {
         if (isAddress(wallet.address)) {
-          if (wallet.type === 'WHALE' || wallet.type === 'CEX_EXCHANGE' || wallet.type === 'DAO_TREASURY') {
+          const isWhaleTarget =
+            wallet.isWhale ||
+            wallet.type === 'WHALE' ||
+            wallet.type === 'CEX_EXCHANGE' ||
+            wallet.type === 'DAO_TREASURY' ||
+            wallet.types?.includes('WHALE');
+          const isPositionTarget =
+            wallet.isPosition ||
+            wallet.type === 'POSITION' ||
+            wallet.type === 'WHALE_BORROWER' ||
+            wallet.types?.includes('POSITION');
+
+          if (isWhaleTarget) {
             await watchWalletWorkflow.registerWallet(wallet.address);
           }
-          if (wallet.type === 'POSITION' || wallet.type === 'WHALE_BORROWER') {
+          if (isPositionTarget) {
             await scanPositionWorkflow.registerPosition(wallet.address);
           }
         }
@@ -1005,9 +1032,10 @@ export function errorHandler(
 
 
 ================================================================================
-FILE: apps/api/src/routes/atp.ts (34 lines)
+FILE: apps/api/src/routes/atp.ts (62 lines)
 ================================================================================
 import type { FastifyInstance } from 'fastify';
+import crypto from 'crypto';
 import { isAddress } from 'ethers';
 import { atpService } from '../services/atpService.ts';
 import { ENV } from '../config/env.ts';
@@ -1024,21 +1052,48 @@ export async function atpRoutes(server: FastifyInstance) {
     return atpService.getAgentMetadata();
   });
 
-  // Register New Agent Tokenization Instance
-  server.post<{ Body: AtpRegisterRequestBody }>('/api/atp/register', async (request, reply) => {
-    if (ENV.ATP_API_KEY) {
-      const apiKeyHeader = request.headers['x-api-key'];
-      if (apiKeyHeader !== ENV.ATP_API_KEY) {
-        return reply.status(401).send({ error: 'Unauthorized: Invalid or missing x-api-key header' });
+  // Register New Agent Tokenization Instance (Protected with constant-time API key verification)
+  server.post<{ Body: AtpRegisterRequestBody }>(
+    '/api/atp/register',
+    {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: '1 minute',
+        },
+      },
+    },
+    async (request, reply) => {
+      if (!ENV.ATP_API_KEY) {
+        return reply.status(503).send({
+          error: 'ATP registration disabled: server ATP_API_KEY is not configured',
+        });
       }
+
+      const apiKeyHeader = request.headers['x-api-key'];
+      if (typeof apiKeyHeader !== 'string') {
+        return reply.status(401).send({ error: 'Unauthorized: Missing x-api-key header' });
+      }
+
+      const keyBuffer = Buffer.from(apiKeyHeader);
+      const expectedBuffer = Buffer.from(ENV.ATP_API_KEY);
+      if (
+        keyBuffer.length !== expectedBuffer.length ||
+        !crypto.timingSafeEqual(keyBuffer, expectedBuffer)
+      ) {
+        return reply.status(401).send({ error: 'Unauthorized: Invalid x-api-key header' });
+      }
+
+      const body = request.body;
+      if (!body || !body.treasuryAddress || !isAddress(body.treasuryAddress)) {
+        return reply.status(400).send({
+          error: 'A valid EVM treasury address is required for ATP registration',
+        });
+      }
+      const registered = await atpService.registerAgent(body);
+      return reply.status(201).send(registered);
     }
-    const body = request.body;
-    if (!body || !body.treasuryAddress || !isAddress(body.treasuryAddress)) {
-      return reply.status(400).send({ error: 'A valid EVM treasury address is required for ATP registration' });
-    }
-    const registered = await atpService.registerAgent(body);
-    return reply.status(201).send(registered);
-  });
+  );
 }
 
 
@@ -1118,7 +1173,7 @@ export async function healthRoutes(server: FastifyInstance) {
 
 
 ================================================================================
-FILE: apps/api/src/routes/scan.ts (40 lines)
+FILE: apps/api/src/routes/scan.ts (73 lines)
 ================================================================================
 import type { FastifyInstance } from 'fastify';
 import { ScanController } from '../controllers/scanController.ts';
@@ -1134,15 +1189,48 @@ import type {
 } from '../types/api.ts';
 
 export async function scanRoutes(server: FastifyInstance) {
-  // Treasury Risk Scan
-  server.post<{ Body: RiskScanRequestBody }>('/api/risk-scan', ScanController.runRiskScan);
+  // Treasury Risk Scan (stricter per-client rate limit for heavy RPC/ADK pipeline)
+  server.post<{ Body: RiskScanRequestBody }>(
+    '/api/risk-scan',
+    {
+      config: {
+        rateLimit: {
+          max: 20,
+          timeWindow: '1 minute',
+        },
+      },
+    },
+    ScanController.runRiskScan
+  );
 
   // WhaleWatch Registration & Alerts
-  server.post<{ Body: WhaleRegisterRequestBody }>('/whale', ScanController.registerWhale);
+  server.post<{ Body: WhaleRegisterRequestBody }>(
+    '/whale',
+    {
+      config: {
+        rateLimit: {
+          max: 20,
+          timeWindow: '1 minute',
+        },
+      },
+    },
+    ScanController.registerWhale
+  );
   server.get<{ Querystring: AlertsQuery }>('/alerts', ScanController.getAlerts);
 
   // LiquidShield Registration & Health Snapshots
-  server.post<{ Body: PositionRegisterRequestBody }>('/position', ScanController.registerPosition);
+  server.post<{ Body: PositionRegisterRequestBody }>(
+    '/position',
+    {
+      config: {
+        rateLimit: {
+          max: 20,
+          timeWindow: '1 minute',
+        },
+      },
+    },
+    ScanController.registerPosition
+  );
   server.get<{ Querystring: HealthQuery }>('/position/health', ScanController.getHealth);
 
   // Monitored Workflows Overview
@@ -1163,7 +1251,7 @@ export async function scanRoutes(server: FastifyInstance) {
 
 
 ================================================================================
-FILE: apps/api/src/server.ts (47 lines)
+FILE: apps/api/src/server.ts (48 lines)
 ================================================================================
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
@@ -1178,6 +1266,7 @@ import { atpRoutes } from './routes/atp.ts';
 
 export async function buildServer(): Promise<FastifyInstance> {
   const server = Fastify({
+    trustProxy: true,
     logger: {
       level: ENV.NODE_ENV === 'development' ? 'info' : 'warn',
     },
@@ -1454,7 +1543,7 @@ export interface SystemMetricsResponse {
 
 
 ================================================================================
-FILE: apps/api/src/websocket/liveFeed.ts (109 lines)
+FILE: apps/api/src/websocket/liveFeed.ts (116 lines)
 ================================================================================
 import type { FastifyInstance } from 'fastify';
 import type { CompoundAlert } from 'agents-core';
@@ -1528,6 +1617,13 @@ export async function registerLiveFeed(fastify: FastifyInstance): Promise<void> 
 
     const handleConnection = (socket: any, _request: any) => {
         connectedClients.add(socket);
+
+        // Instantly replay recent alerts buffer to newly connected client
+        try {
+            replayTo(socket);
+        } catch {
+            // Socket might have closed before replay
+        }
 
         socket.isAlive = true;
         socket.on('pong', () => { socket.isAlive = true; });
@@ -2877,7 +2973,7 @@ export default function ActionList({ plan, decision }: ActionListProps) {
 
 
 ================================================================================
-FILE: apps/web/src/components/AlertPanel.tsx (142 lines)
+FILE: apps/web/src/components/AlertPanel.tsx (143 lines)
 ================================================================================
 'use client';
 
@@ -2905,6 +3001,7 @@ function formatUSD(value: string | number): string {
 }
 
 function formatTimestamp(timestamp: number): string {
+  if (!timestamp || timestamp <= 0) return 'JUST NOW';
   const diffMs = Date.now() - timestamp;
   const diffMin = Math.floor(diffMs / 60_000);
 
@@ -3509,7 +3606,7 @@ export default function PolicySelector({
 
 
 ================================================================================
-FILE: apps/web/src/components/PositionCard.tsx (129 lines)
+FILE: apps/web/src/components/PositionCard.tsx (136 lines)
 ================================================================================
 'use client';
 
@@ -3549,17 +3646,19 @@ export default function PositionCard({ position }: PositionCardProps) {
   const latestSnapshot = position.snapshots?.[0];
   const hf = latestSnapshot ? parseFloat(latestSnapshot.healthFactor) : 0;
   const debtVal = parseFloat(latestSnapshot?.debt || '0');
-  const isNoDebt = debtVal === 0 || hf > 100 || !isFinite(hf);
+  const isUnknown = latestSnapshot?.healthFactor === 'UNKNOWN' || (Boolean(latestSnapshot) && isNaN(hf));
+  const isNoDebt = !isUnknown && (debtVal === 0 || hf > 100 || !isFinite(hf));
 
   let tier: RiskTier;
-  if (isNoDebt) tier = 'SAFE';
+  if (isUnknown) tier = 'WARNING';
+  else if (isNoDebt) tier = 'SAFE';
   else if (hf < 1.1) tier = 'CRITICAL';
   else if (hf < 1.3) tier = 'DANGER';
   else if (hf < 2.0) tier = 'WARNING';
   else tier = 'SAFE';
 
   const tierConfig = getTierConfig(tier);
-  const gaugeFill = isNoDebt ? 100 : calculateGaugeFill(hf);
+  const gaugeFill = isUnknown ? 50 : isNoDebt ? 100 : calculateGaugeFill(hf);
 
   return (
     <div
@@ -3585,11 +3684,16 @@ export default function PositionCard({ position }: PositionCardProps) {
         </div>
         <div className="flex items-baseline justify-center gap-2 max-w-full">
           <span className="font-display text-4xl font-black text-black">
-            {isNoDebt ? '∞' : hf > 0 ? hf.toFixed(2) : '—'}
+            {isUnknown ? 'UNKNOWN' : isNoDebt ? '∞' : hf > 0 ? hf.toFixed(2) : '—'}
           </span>
           {isNoDebt && (
             <span className="font-mono text-[10px] font-bold text-gray-600 uppercase tracking-wider bg-gray-100 border border-black px-1.5 py-0.5">
               NO DEBT
+            </span>
+          )}
+          {isUnknown && (
+            <span className="font-mono text-[10px] font-bold text-yellow-800 uppercase tracking-wider bg-yellow-100 border border-yellow-700 px-1.5 py-0.5">
+              RPC UNREACHABLE
             </span>
           )}
         </div>
@@ -3871,7 +3975,7 @@ export default function WalletCard({ wallet }: WalletCardProps) {
 
 
 ================================================================================
-FILE: apps/web/src/hooks/useLiveFeed.ts (82 lines)
+FILE: apps/web/src/hooks/useLiveFeed.ts (102 lines)
 ================================================================================
 'use client'
 
@@ -3906,14 +4010,34 @@ export function useLiveFeed() {
                     // Broadcast format: { type: "WHALE"|"LIQUIDATION"|"COMPOUND", alert: {...}, timestamp: ISO }
                     if (data.alert) {
                         setAlerts((prev) => {
-                            // Check for duplicates (by txHash or txHash + address)
-                            const isDuplicate = prev.some(a => 
-                                (a.wwAlert?.txHash && a.wwAlert?.txHash === data.alert.wwAlert?.txHash) ||
-                                (a.walletAddress === data.alert.walletAddress && 
-                                 JSON.stringify(a.lsAlert) === JSON.stringify(data.alert.lsAlert))
-                            )
-                            if (isDuplicate) return prev
-                            return [data.alert, ...prev].slice(0, 50)
+                            const incoming = data.alert as CompoundAlert;
+                            const incomingTx = incoming.wwAlert?.txHash;
+                            // If incoming is a correlated compound alert, upgrade any existing alert for this address or txHash
+                            if (incoming.isCorrelated) {
+                                const filtered = prev.filter(a =>
+                                    !(incomingTx && a.wwAlert?.txHash === incomingTx) &&
+                                    !(a.walletAddress?.toLowerCase() === incoming.walletAddress?.toLowerCase() && !a.isCorrelated)
+                                );
+                                return [incoming, ...filtered].slice(0, 50);
+                            }
+
+                            // If incoming has a txHash, check if that exact transaction was already alerted
+                            if (incomingTx) {
+                                const exists = prev.some(a => a.wwAlert?.txHash === incomingTx);
+                                if (exists) return prev;
+                            }
+
+                            // If incoming is a pure liquidation snapshot, deduplicate by address and timestamp
+                            const incomingLsTs = incoming.lsAlert?.timestamp;
+                            if (incoming.lsAlert && !incoming.wwAlert && incomingLsTs) {
+                                const exists = prev.some(a =>
+                                    a.walletAddress?.toLowerCase() === incoming.walletAddress?.toLowerCase() &&
+                                    a.lsAlert?.timestamp === incomingLsTs
+                                );
+                                if (exists) return prev;
+                            }
+
+                            return [incoming, ...prev].slice(0, 50);
                         })
                     }
                 } catch (err) {
@@ -4049,65 +4173,45 @@ export function useRiskScan() {
 
 
 ================================================================================
-FILE: apps/web/src/lib/api.ts (174 lines)
+FILE: apps/web/src/lib/api.ts (154 lines)
 ================================================================================
 import type { TreasuryScanResult, WalletInfo } from "@/types/index";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export async function runRiskScan(address: string, policy?: string): Promise<TreasuryScanResult> {
+  let res: Response;
   try {
-    const res = await fetch(`${API_BASE}/api/risk-scan`, {
+    res = await fetch(`${API_BASE}/api/risk-scan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address, policy }),
     });
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.snapshot || data?.risk) {
-        return {
-          snapshot: data.snapshot,
-          risk: {
-            ...data.risk,
-            tier: data.risk?.tier || (data.risk?.score > 70 ? "CRITICAL" : data.risk?.score > 40 ? "WARNING" : "SAFE"),
-          },
-          plan: data.plan || { actions: [] },
-          decision: data.governance || data.decision || {
-            approved: true,
-            reason: "Validated by Sentinel multi-agent core.",
-            enforcedActions: data.plan?.actions || [],
-          },
-        };
-      }
-    }
   } catch {
-    console.warn(`[ChainSentinel] Real-time scan endpoint ${API_BASE}/api/risk-scan unreachable. Check if API server is running on port 3001.`);
+    throw new Error(`Sentinel API unreachable at ${API_BASE}. Ensure backend service is running.`);
+  }
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => null);
+    throw new Error(errorBody?.error || errorBody?.message || `Scan failed with HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  if (!data?.snapshot && !data?.risk) {
+    throw new Error("Invalid telemetry payload received from Sentinel core");
   }
 
   return {
-    snapshot: {
-      address,
-      totalUsdValue: 0,
-      positions: [{ token: "ETH", balance: 0, usdValue: 0 }],
-    },
+    snapshot: data.snapshot,
     risk: {
-      address,
-      level: "LOW",
-      score: 10,
-      tier: "SAFE",
-      healthFactor: 0,
-      narrative: `Backend server at ${API_BASE} is offline. Start the backend with 'pnpm dev' to stream live Ethereum on-chain balances.`,
-      issues: ["Fastify API server is offline on port 3001"],
+      ...data.risk,
+      tier: data.risk?.tier || (data.risk?.score >= 85 ? "CRITICAL" : data.risk?.score >= 70 ? "DANGER" : data.risk?.score > 40 ? "WARNING" : "SAFE"),
     },
-    plan: {
-      actions: [
-        { type: "ALERT", message: "Run 'pnpm dev' to launch Fastify API & WebSocket server for live telemetry." },
-      ],
-    },
-    decision: {
-      approved: false,
-      reason: "Backend offline - start Fastify service (port 3001) for autonomous validation.",
-      enforcedActions: [],
+    plan: data.plan || { actions: [] },
+    decision: data.governance || data.decision || {
+      approved: true,
+      reason: "Validated by Sentinel multi-agent core.",
+      enforcedActions: data.plan?.actions || [],
     },
   };
 }
@@ -5176,9 +5280,9 @@ export const alertAgent = createAgent({
 
 
 ================================================================================
-FILE: packages/agents-core/src/agents/governanceAgent.ts (164 lines)
+FILE: packages/agents-core/src/agents/governanceAgent.ts (159 lines)
 ================================================================================
-import { createAgent } from '../lib/agentFactory.ts';
+import { createAgent, type AgentInstance } from '../lib/agentFactory.ts';
 import type { RiskResult, ProtectionPlan, GovernanceDecision } from "../types.ts";
 import { callQwenLLM, extractJSON } from "../tools/treasuryTools.ts";
 import { getPolicy } from "../policies/index.ts";
@@ -5188,13 +5292,12 @@ import { getPolicy } from "../policies/index.ts";
  * Applies hard safety rules + LLM-based policy enforcement
  */
 
-let governanceAgent: any = null;
-let governanceRunner: any = null;
+let governanceAgent: AgentInstance | null = null;
 
 export async function initGovernanceAgent() {
-  if (governanceAgent && governanceRunner) return;
+  if (governanceAgent) return;
 
-  const built = createAgent({
+  governanceAgent = createAgent({
     name: "governance_enforcement_agent",
     instructions: `You are the final safety authority for Chain Sentinel.
 Enforce strict security and financial safety rules based on treasury risk policies.
@@ -5210,8 +5313,6 @@ Return STRICT JSON ONLY:
 }`
   });
 
-  governanceAgent = built;
-  governanceRunner = built.runner;
   console.log("[governanceAgent] Initialized (createAgent/Gemini)");
 }
 
@@ -5226,16 +5327,20 @@ export async function enforceGovernance(
   const { risk, plan, totalUsdValue, policy: policyName } = input;
   const policy = getPolicy(policyName || 'CONSERVATIVE');
 
-  // HARD SAFETY RULE: Require manual multisig or block if high risk on significant treasury
-  if (risk.level === "HIGH" && (totalUsdValue > 1_000_000 || policy.requireMultiSigApproval)) {
+  // HARD SAFETY RULE: When HIGH risk on large treasury, enforce mandatory defensive actions
+  if (risk.level === "HIGH" && totalUsdValue > 1_000_000) {
     console.log(`[governanceAgent] Hard safety rule triggered: HIGH risk on $${(totalUsdValue / 1e6).toFixed(2)}M treasury under ${policy.name} policy`);
     return {
-      approved: false,
-      reason: `CRITICAL: High risk under ${policy.name} policy (${policy.requireMultiSigApproval ? 'Multi-Sig Required' : 'Exposure Limit Exceeded'}). Manual governance intervention required.`,
+      approved: true, // Emergency actions locked in and approved
+      reason: `Hard safety rule activated: Critical risk detected on $${(totalUsdValue / 1e6).toFixed(2)}M treasury. Mandatory defensive actions locked in under ${policy.name} policy.`,
       enforcedActions: [
         {
+          type: "REDUCE",
+          message: `Mandatory risk reduction: de-risk top concentrated exposure to within ${policy.maxSingleAssetConcentrationPct}% of treasury.`
+        },
+        {
           type: "ALERT",
-          message: `Governance blocked automated execution under ${policy.name} policy due to high risk threshold.`
+          message: `Emergency escalation: High risk threshold exceeded under ${policy.name} governance policy.`
         }
       ]
     };
@@ -5243,7 +5348,7 @@ export async function enforceGovernance(
 
   try {
     // Ensure agent is initialized
-    if (!governanceRunner) {
+    if (!governanceAgent) {
       await initGovernanceAgent();
     }
 
@@ -5273,15 +5378,9 @@ OUTPUT ONLY THIS JSON:
 {"approved":true|false,"reason":"brief explanation of decision","enforcedActions":[{"type":"ALERT"|"REDUCE"|"DIVERSIFY","message":"action to enforce"}]}`;
 
     let response = '';
-    if (process.env.GEMINI_API_KEY && (governanceAgent || governanceRunner)) {
+    if (process.env.GEMINI_API_KEY && governanceAgent) {
       try {
-        if (typeof governanceAgent?.run === 'function') {
-          const res = await governanceAgent.run(prompt);
-          response = typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
-        } else if (typeof governanceRunner?.run === 'function') {
-          const res = await governanceRunner.run(prompt);
-          response = typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
-        }
+        response = await governanceAgent.ask(prompt);
       } catch (adkErr) {
         console.warn("[governanceAgent] ADK governance execution failed, attempting fallback:", adkErr);
       }
@@ -5432,7 +5531,7 @@ export const intentAgent = createAgent({
 
 
 ================================================================================
-FILE: packages/agents-core/src/agents/lsGovernanceAgent.ts (55 lines)
+FILE: packages/agents-core/src/agents/lsGovernanceAgent.ts (64 lines)
 ================================================================================
 import { createAgent } from '../lib/agentFactory.ts'
 import { LS_POLICIES } from '../policies/lsPolicies.ts'
@@ -5452,11 +5551,20 @@ export async function evaluateAlert(
     confidence: number,
 ): Promise<LSGovernanceDecision> {
     if (healthFactor < 1.1 && LS_POLICIES.CRITICAL_OVERRIDE) {
+        const onCriticalCooldown = await alertCooldown.isCooledDown(`${PIPELINE}:critical`, address);
+        if (onCriticalCooldown) {
+            return {
+                allowed: false,
+                reason: `Address ${address} is on critical alert cooldown`,
+                criticalOverride: true,
+            };
+        }
+        await alertCooldown.setCooldown(`${PIPELINE}:critical`, address, 60_000);
         return {
             allowed: true,
-            reason: `CRITICAL_OVERRIDE: HF ${healthFactor.toFixed(4)} < 1.1 — all gates bypassed`,
+            reason: `CRITICAL_OVERRIDE: HF ${healthFactor.toFixed(4)} < 1.1 — emergency alert dispatched`,
             criticalOverride: true,
-        }
+        };
     }
 
     if (confidence < LS_POLICIES.MIN_CONFIDENCE) {
@@ -5519,9 +5627,9 @@ export const monitorAgent = createAgent({
 
 
 ================================================================================
-FILE: packages/agents-core/src/agents/plannerAgent.ts (156 lines)
+FILE: packages/agents-core/src/agents/plannerAgent.ts (147 lines)
 ================================================================================
-import { createAgent } from '../lib/agentFactory.ts';
+import { createAgent, type AgentInstance } from '../lib/agentFactory.ts';
 import type { RiskResult, ProtectionPlan } from "../types.ts";
 import { callQwenLLM, extractJSON } from "../tools/treasuryTools.ts";
 import { getPolicy } from "../policies/index.ts";
@@ -5531,13 +5639,12 @@ import { getPolicy } from "../policies/index.ts";
  * Generates mitigation strategies based on risk assessment and selected policy
  */
 
-let plannerAgent: any = null;
-let plannerRunner: any = null;
+let plannerAgent: AgentInstance | null = null;
 
 export async function initPlannerAgent() {
-  if (plannerAgent && plannerRunner) return;
+  if (plannerAgent) return;
 
-  const built = createAgent({
+  plannerAgent = createAgent({
     name: "protection_planner_agent",
     instructions: `You are a DeFi treasury protection strategist.
 Based on risk assessment and governance policy, create a protection plan using only:
@@ -5553,8 +5660,6 @@ Return STRICT JSON ONLY:
 }`
   });
 
-  plannerAgent = built;
-  plannerRunner = built.runner;
   console.log("[plannerAgent] Initialized (createAgent/Gemini)");
 }
 
@@ -5566,7 +5671,7 @@ export async function generateProtectionPlan(
 
   try {
     // Ensure agent is initialized
-    if (!plannerRunner) {
+    if (!plannerAgent) {
       await initPlannerAgent();
     }
 
@@ -5599,15 +5704,9 @@ OUTPUT ONLY THIS JSON:
 {"actions":[{"type":"ALERT"|"REDUCE"|"DIVERSIFY","message":"specific action description"}]}`;
 
     let response = '';
-    if (process.env.GEMINI_API_KEY && (plannerAgent || plannerRunner)) {
+    if (process.env.GEMINI_API_KEY && plannerAgent) {
       try {
-        if (typeof plannerAgent?.run === 'function') {
-          const res = await plannerAgent.run(prompt);
-          response = typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
-        } else if (typeof plannerRunner?.run === 'function') {
-          const res = await plannerRunner.run(prompt);
-          response = typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
-        }
+        response = await plannerAgent.ask(prompt);
       } catch (adkErr) {
         console.warn("[plannerAgent] ADK agent execution failed, attempting fallback:", adkErr);
       }
@@ -5712,7 +5811,7 @@ export interface RiskAssessment extends RiskResult {
 }
 
 export function deterministicScore(address: string, healthFactor?: number): RiskAssessment {
-  const hf = healthFactor && healthFactor > 0 ? healthFactor : 0;
+  const hf = healthFactor && healthFactor > 0 && isFinite(healthFactor) ? healthFactor : 0;
   const hasDebt = hf > 0;
   const tier = hasDebt ? classifyTier(hf) : 'SAFE';
   let score: number;
@@ -5894,7 +5993,7 @@ export const scannerAgent = createAgent({
 
 
 ================================================================================
-FILE: packages/agents-core/src/agents/watcherAgent.ts (84 lines)
+FILE: packages/agents-core/src/agents/watcherAgent.ts (87 lines)
 ================================================================================
 import { createAgent } from '../lib/agentFactory.ts';
 import { ethers } from 'ethers';
@@ -5957,6 +6056,9 @@ export async function watchTreasury(address: string): Promise<TreasurySnapshot> 
         const aaveData = await fetchAaveUserAccountData(normalizedAddress, provider);
         if (aaveData.totalCollateralUSD > 0) {
           totalUsdValue += aaveData.totalCollateralUSD;
+          if (aaveData.totalDebtUSD > 0) {
+            totalUsdValue = Math.max(0, totalUsdValue - aaveData.totalDebtUSD);
+          }
           positions.push({
             token: 'Aave V3 Collateral',
             balance: 1,
@@ -6016,12 +6118,12 @@ export async function evaluateAlert(
         }
     }
 
-    const history = await walletHistory.getHistory(address)
-    if (history.length < 5) {
+    const history = await walletHistory.getHistory(address);
+    if (history.length === 0) {
         return {
             allowed: false,
-            reason: 'Building baseline',
-        }
+            reason: 'Building baseline: awaiting first verified transaction',
+        };
     }
 
     await alertCooldown.setCooldown(PIPELINE, address, WW_POLICIES.COOLDOWN_MS)
@@ -6036,7 +6138,7 @@ export const wwGovernanceAgent = createAgent({
 
 
 ================================================================================
-FILE: packages/agents-core/src/correlation/alertCorrelator.ts (120 lines)
+FILE: packages/agents-core/src/correlation/alertCorrelator.ts (124 lines)
 ================================================================================
 import type {
     WhaleScanResult,
@@ -6095,9 +6197,13 @@ function determineUrgency(
     isCorrelated: boolean,
     snapshot?: PositionSnapshot,
 ): CompoundAlert['combinedUrgency'] {
-    if (isCorrelated) return 'CRITICAL';
-    if (snapshot) {
-        const hf = parseFloat(snapshot.healthFactor);
+    const hf = snapshot ? parseFloat(snapshot.healthFactor) : NaN;
+    if (isCorrelated) {
+        if (!isNaN(hf) && hf < 1.3) return 'CRITICAL';
+        if (!isNaN(hf) && hf < 2.0) return 'HIGH';
+        return 'MEDIUM';
+    }
+    if (!isNaN(hf)) {
         if (hf < 1.1) return 'CRITICAL';
         if (hf < 1.3) return 'HIGH';
         if (hf < 2.0) return 'MEDIUM';
@@ -6237,7 +6343,7 @@ FILE: packages/agents-core/src/data/knownAddresses.json (33 lines)
 
 
 ================================================================================
-FILE: packages/agents-core/src/database.ts (70 lines)
+FILE: packages/agents-core/src/database.ts (88 lines)
 ================================================================================
 import fs from 'fs';
 import path from 'path';
@@ -6287,13 +6393,31 @@ export const prisma = {
     create: async ({ data }: any) => {
       const db = readDB();
       if (!db.wallets) db.wallets = [];
+      const key = data.address?.toLowerCase();
       const existingIdx = db.wallets.findIndex(
-        (w: any) => w.address?.toLowerCase() === data.address?.toLowerCase()
+        (w: any) => w.address?.toLowerCase() === key
       );
       if (existingIdx >= 0) {
-        db.wallets[existingIdx] = { ...db.wallets[existingIdx], ...data };
+        const existing = db.wallets[existingIdx];
+        const existingTypes = new Set(
+          Array.isArray(existing.types) ? existing.types : [existing.type].filter(Boolean)
+        );
+        if (data.type) existingTypes.add(data.type);
+        db.wallets[existingIdx] = {
+          ...existing,
+          ...data,
+          types: Array.from(existingTypes),
+          isWhale: existingTypes.has('WHALE') || data.type === 'WHALE' || Boolean(existing.isWhale),
+          isPosition: existingTypes.has('POSITION') || data.type === 'POSITION' || Boolean(existing.isPosition),
+        };
       } else {
-        db.wallets.push(data);
+        const types = [data.type].filter(Boolean);
+        db.wallets.push({
+          ...data,
+          types,
+          isWhale: data.type === 'WHALE',
+          isPosition: data.type === 'POSITION',
+        });
       }
       writeDB(db);
       return data;
@@ -6334,41 +6458,72 @@ export * from './llm/LocalLLM.ts';
 
 
 ================================================================================
-FILE: packages/agents-core/src/lib/agentFactory.ts (35 lines)
+FILE: packages/agents-core/src/lib/agentFactory.ts (66 lines)
 ================================================================================
 import { AgentBuilder } from '@iqai/adk';
-import { google } from '@ai-sdk/google';
 import type { AgentConfig } from '../types.ts';
 
 export type { AgentConfig };
 
-export function createAgent(config: AgentConfig): any {
-    let builder = AgentBuilder.create(config.name || 'default_agent');
+export interface AgentInstance {
+  config: AgentConfig;
+  getBuilt: () => Promise<any>;
+  ask: (prompt: string) => Promise<string>;
+  build: () => Promise<any>;
+}
 
-    // Gemini is the primary provider for this project
-    if (process.env.GEMINI_API_KEY) {
-        const model = google(process.env.GEMINI_MODEL || 'gemini-2.0-flash');
-        // @ts-ignore
-        builder = builder.withModel(model);
-    } else {
-        // Fallback to default ADK model string (OpenAI) if Gemini is missing
-        const model = process.env.ADK_MODEL || 'gpt-4o';
-        // @ts-ignore
-        builder = builder.withModel(model);
+export function createAgent(config: AgentConfig): AgentInstance {
+  let builtPromise: Promise<any> | null = null;
+
+  async function getBuilt(): Promise<any> {
+    if (!builtPromise) {
+      builtPromise = (async () => {
+        const safeName = (config.name || 'default_agent').replace(/[^a-zA-Z0-9_]/g, '_');
+        let builder = AgentBuilder.create(safeName);
+
+        // Gemini is the primary provider for this project
+        const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+        if (geminiKey) {
+          if (!process.env.GOOGLE_API_KEY) {
+            process.env.GOOGLE_API_KEY = geminiKey;
+          }
+          const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+          builder = builder.withModel(modelName);
+        } else {
+          // Fallback to default ADK model string if Gemini is missing
+          const model = process.env.ADK_MODEL || 'gpt-4o';
+          builder = builder.withModel(model);
+        }
+
+        if (config.instructions) {
+          builder = builder.withInstruction(config.instructions);
+        }
+
+        if (config.tools) {
+          builder = builder.withTools(...config.tools);
+        }
+
+        return await builder.build();
+      })();
     }
+    return builtPromise;
+  }
 
-    if (config.instructions) {
-        // @ts-ignore
-        builder = builder.withInstruction(config.instructions);
-    }
-
-    if (config.tools) {
-        // @ts-ignore
-        builder = builder.withTools(...config.tools);
-    }
-
-    // @ts-ignore
-    return builder.build();
+  return {
+    config,
+    getBuilt,
+    async ask(prompt: string): Promise<string> {
+      const built = await getBuilt();
+      if (!built || !built.runner || typeof built.runner.ask !== 'function') {
+        throw new Error('ADK agent runner not available');
+      }
+      const res = await built.runner.ask(prompt);
+      return typeof res === 'string' ? res : (res?.text || JSON.stringify(res));
+    },
+    async build(): Promise<any> {
+      return getBuilt();
+    },
+  };
 }
 
 
@@ -6604,7 +6759,7 @@ export const threatVectorStore = new ThreatVectorStore();
 
 
 ================================================================================
-FILE: packages/agents-core/src/memory/walletHistory.ts (52 lines)
+FILE: packages/agents-core/src/memory/walletHistory.ts (37 lines)
 ================================================================================
 import { getRedisClient, historyKey } from '../redis.ts';
 import type { WhaleScanResult } from '../types.ts';
@@ -6637,22 +6792,7 @@ export async function backfill(address: string): Promise<void> {
     for (const tx of txs) {
       await append(address, tx);
     }
-    const current = await getHistory(address);
-    if (current.length < 5) {
-      const needed = 5 - current.length;
-      for (let i = 0; i < needed; i++) {
-        await append(address, {
-          address,
-          amount: '10.0',
-          token: 'ETH',
-          timestamp: Date.now() - (i + 1) * 3600000,
-          txHash: `0xbaseline_${address.slice(2, 8)}_${i}`,
-          label: 'Baseline Activity',
-          intent: 'ACCUMULATION',
-        });
-      }
-    }
-    console.log(`[walletHistory] Backfilled baseline history for ${address}`);
+    console.log(`[walletHistory] Backfilled ${txs.length} transactions for ${address}`);
   } catch (err) {
     console.warn(`[walletHistory] Backfill failed for ${address}:`, err);
   }
@@ -6782,7 +6922,7 @@ export * from './scanQueue.ts'
 
 
 ================================================================================
-FILE: packages/agents-core/src/queues/scanQueue.ts (92 lines)
+FILE: packages/agents-core/src/queues/scanQueue.ts (95 lines)
 ================================================================================
 /**
  * Risk-tiered priority queue for LiquidShield scan scheduling.
@@ -6812,22 +6952,25 @@ export interface QueueEntry {
 
 const queue: Map<string, QueueEntry> = new Map()
 
-export function classifyTier(healthFactor: number): RiskTier {
-    if (healthFactor < 1.1) return 'CRITICAL'
-    if (healthFactor < 1.3) return 'DANGER'
-    if (healthFactor < 2.0) return 'WARNING'
-    return 'SAFE'
+export function classifyTier(healthFactor: number | null | undefined): RiskTier {
+    if (healthFactor === null || healthFactor === undefined || !isFinite(healthFactor) || healthFactor <= 0) {
+        return 'SAFE';
+    }
+    if (healthFactor < 1.1) return 'CRITICAL';
+    if (healthFactor < 1.3) return 'DANGER';
+    if (healthFactor < 2.0) return 'WARNING';
+    return 'SAFE';
 }
 
-export function enqueue(address: string, healthFactor: number): void {
-    const tier = classifyTier(healthFactor)
-    const intervalMs = TIER_INTERVALS[tier]
+export function enqueue(address: string, healthFactor: number | null | undefined): void {
+    const tier = classifyTier(healthFactor);
+    const intervalMs = TIER_INTERVALS[tier];
     queue.set(address.toLowerCase(), {
         address: address.toLowerCase(),
         tier,
         intervalMs,
         nextScanAt: Date.now(),
-    })
+    });
 }
 
 export function dequeueNext(): QueueEntry | undefined {
@@ -6847,7 +6990,7 @@ export function dequeueNext(): QueueEntry | undefined {
     return earliest
 }
 
-export function updateTier(address: string, healthFactor: number): void {
+export function updateTier(address: string, healthFactor: number | null | undefined): void {
     const key = address.toLowerCase()
     const existing = queue.get(key)
     const newTier = classifyTier(healthFactor)
@@ -7007,6 +7150,43 @@ export const getRedisClient = () => {
 
 export const historyKey = (pipeline: string, address: string) => `hist:${pipeline}:${address}`;
 export const cooldownKey = (pipeline: string, address: string) => `cd:${pipeline}:${address}`;
+
+
+
+================================================================================
+FILE: packages/agents-core/src/schemas/index.ts (32 lines)
+================================================================================
+import { z } from 'zod';
+
+export const RiskSignalValidationSchema = z.object({
+  signalId: z.string(),
+  walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  protocol: z
+    .enum(['aave-v3', 'uniswap-v3', 'makerdao', 'compound-v3', 'eigenlayer', 'general-treasury'])
+    .optional(),
+  riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+  healthFactor: z.number().min(0).optional(),
+  riskScore: z.number().min(0).max(100),
+  detectedIssues: z.array(z.string()).optional(),
+  compoundAlert: z
+    .object({
+      isCorrelated: z.boolean().optional(),
+      whaleMoveAmountUSD: z.number().optional(),
+      liquidationDistancePct: z.number().optional(),
+      combinedUrgency: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
+    })
+    .optional(),
+  governanceRecommendation: z
+    .object({
+      approved: z.boolean(),
+      actionType: z.enum(['ALERT', 'REDUCE', 'DIVERSIFY', 'EMERGENCY_PAUSE']),
+      reason: z.string(),
+    })
+    .optional(),
+  timestamp: z.number().int(),
+});
+
+export type ValidatedRiskSignal = z.infer<typeof RiskSignalValidationSchema>;
 
 
 
@@ -7173,7 +7353,7 @@ export async function calculateRepayAmount(
 
 
 ================================================================================
-FILE: packages/agents-core/src/tools/defiTools.ts (136 lines)
+FILE: packages/agents-core/src/tools/defiTools.ts (140 lines)
 ================================================================================
 import { ethers } from 'ethers';
 import type { PositionSnapshot } from '../types.ts';
@@ -7195,6 +7375,7 @@ export interface UserAccountData {
   healthFactor: number;
   isAtRisk: boolean;
   distanceToLiquidationPct: number;
+  isError?: boolean;
 }
 
 /**
@@ -7258,8 +7439,8 @@ export async function fetchAaveUserAccountData(
       isAtRisk: finalDebtUSD > 0 && finalHF < 1.3,
       distanceToLiquidationPct: distanceToLiquidation,
     };
-  } catch {
-    // Graceful fallback when wallet is unindexed or RPC call fails
+  } catch (err: any) {
+    console.warn(`[defiTools] Failed to fetch Aave V3 data for ${walletAddress}:`, err?.message || err);
     return {
       totalCollateralUSD: 0,
       totalDebtUSD: 0,
@@ -7269,6 +7450,7 @@ export async function fetchAaveUserAccountData(
       healthFactor: 0,
       isAtRisk: false,
       distanceToLiquidationPct: 100,
+      isError: true,
     };
   }
 }
@@ -7298,9 +7480,11 @@ export function toPositionSnapshot(
   protocol: string = 'aave-v3'
 ): PositionSnapshot {
   const safeHF =
-    data.totalDebtUSD > 0 && isFinite(data.healthFactor) && data.healthFactor > 0 && data.healthFactor <= 100
+    data.isError
+      ? 'UNKNOWN'
+      : data.totalDebtUSD > 0 && isFinite(data.healthFactor) && data.healthFactor > 0 && data.healthFactor <= 100
       ? data.healthFactor.toFixed(4)
-      : '0.0000';
+      : 'Infinity';
   return {
     walletAddress,
     healthFactor: safeHF,
@@ -7326,7 +7510,7 @@ export * from './treasuryTools.ts';
 
 
 ================================================================================
-FILE: packages/agents-core/src/tools/priceTools.ts (130 lines)
+FILE: packages/agents-core/src/tools/priceTools.ts (182 lines)
 ================================================================================
 interface PriceCacheEntry {
   priceUSD: number;
@@ -7446,22 +7630,74 @@ export async function getTokenPriceUSD(symbol: string): Promise<number> {
 }
 
 /**
- * Batch price lookup
+ * Batch price lookup with single aggregated CoinGecko request
  */
 export async function getBatchPrices(symbols: string[]): Promise<Record<string, number>> {
   const result: Record<string, number> = {};
-  await Promise.all(
-    symbols.map(async (s) => {
-      result[s] = await getTokenPriceUSD(s);
-    })
-  );
+  const neededCoinIds = new Set<string>();
+  const idToSymbols = new Map<string, string[]>();
+
+  for (const rawSym of symbols) {
+    const sym = rawSym.toUpperCase();
+    const cached = priceCache.get(sym);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      result[sym] = cached.priceUSD;
+      continue;
+    }
+    const coinId = COINGECKO_ID_MAP[sym];
+    if (coinId) {
+      neededCoinIds.add(coinId);
+      const list = idToSymbols.get(coinId) || [];
+      list.push(sym);
+      idToSymbols.set(coinId, list);
+    } else {
+      result[sym] = FALLBACK_PRICES[sym] ?? (KNOWN_STABLECOINS.has(sym) ? 1.0 : 0);
+    }
+  }
+
+  if (neededCoinIds.size > 0) {
+    try {
+      const idsParam = Array.from(neededCoinIds).join(',');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd`,
+        { signal: controller.signal }
+      );
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = (await res.json()) as Record<string, { usd: number }>;
+        for (const [coinId, syms] of idToSymbols.entries()) {
+          const price = data[coinId]?.usd;
+          if (price && price > 0) {
+            for (const sym of syms) {
+              priceCache.set(sym, { priceUSD: price, timestamp: Date.now() });
+              result[sym] = price;
+            }
+          }
+        }
+      }
+    } catch {
+      // CoinGecko batch failed, fallbacks will be used below
+    }
+  }
+
+  // Populate any remaining symbols with individual fallback/cache
+  for (const rawSym of symbols) {
+    const sym = rawSym.toUpperCase();
+    if (result[sym] === undefined) {
+      result[sym] = await getTokenPriceUSD(sym);
+    }
+  }
+
   return result;
 }
 
 
 
 ================================================================================
-FILE: packages/agents-core/src/tools/rpcTools.ts (90 lines)
+FILE: packages/agents-core/src/tools/rpcTools.ts (102 lines)
 ================================================================================
 import { ethers } from 'ethers';
 
@@ -7476,10 +7712,11 @@ export const SUPPORTED_CHAINS: Record<string, ChainConfig> = {
     chainId: 1,
     name: 'Ethereum Mainnet',
     rpcUrls: [
-      ...(process.env.ALCHEMY_API_KEY && process.env.ALCHEMY_API_KEY !== 'your_alchemy_api_key_here'
+      ...(process.env.ALCHEMY_API_KEY &&
+      !process.env.ALCHEMY_API_KEY.includes('your_alchemy')
         ? [`https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`]
         : []),
-      process.env.RPC_URL || 'https://ethereum.publicnode.com',
+      process.env.RPC_URL || process.env.ETH_RPC_URL || 'https://ethereum.publicnode.com',
       'https://eth.llamarpc.com',
       'https://cloudflare-eth.com',
       'https://rpc.ankr.com/eth',
@@ -7511,6 +7748,15 @@ export const SUPPORTED_CHAINS: Record<string, ChainConfig> = {
   },
 };
 
+function sanitizeRpcUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.hostname}`;
+  } catch {
+    return 'invalid-endpoint';
+  }
+}
+
 /**
  * Resilient JSON-RPC Provider Failover
  * Attempts queries through ordered pool of public and private RPC endpoints
@@ -7535,7 +7781,7 @@ export async function withResilientProvider<T>(
       return result;
     } catch (err) {
       lastError = err;
-      console.warn(`[rpcTools] RPC ${url} failed on ${config.name}, falling back to next...`);
+      console.warn(`[rpcTools] RPC ${sanitizeRpcUrl(url)} failed on ${config.name}, falling back to next...`);
     }
   }
 
@@ -7550,13 +7796,15 @@ export async function withResilientProvider<T>(
 export function getProvider(chain: keyof typeof SUPPORTED_CHAINS = 'ethereum'): ethers.JsonRpcProvider {
   const config = SUPPORTED_CHAINS[chain] || SUPPORTED_CHAINS.ethereum;
   const primaryUrl = config.rpcUrls[0];
-  return new ethers.JsonRpcProvider(primaryUrl);
+  return new ethers.JsonRpcProvider(primaryUrl, undefined, {
+    staticNetwork: ethers.Network.from(config.chainId),
+  });
 }
 
 
 
 ================================================================================
-FILE: packages/agents-core/src/tools/treasuryTools.ts (174 lines)
+FILE: packages/agents-core/src/tools/treasuryTools.ts (176 lines)
 ================================================================================
 import type { TreasurySnapshot, RiskResult, ProtectionPlan } from "../types.ts";
 
@@ -7629,7 +7877,7 @@ export async function callQwenLLM(prompt: string, retries: number = 1): Promise<
     throw new Error("QWEN_API_URL not configured");
   }
 
-  const timeout = 2500;
+  const timeout = 8000;
 
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
@@ -7645,8 +7893,10 @@ export async function callQwenLLM(prompt: string, retries: number = 1): Promise<
           model: "qwen2.5:0.5b",
           prompt,
           stream: false,
-          temperature: 0.3,
-          top_p: 0.8
+          options: {
+            temperature: 0.3,
+            top_p: 0.8,
+          },
         }),
         signal: controller.signal
       });
@@ -7735,7 +7985,7 @@ export function extractJSON<T = any>(text: string): T {
 
 
 ================================================================================
-FILE: packages/agents-core/src/tools/walletTools.ts (190 lines)
+FILE: packages/agents-core/src/tools/walletTools.ts (194 lines)
 ================================================================================
 import type { WhaleScanResult } from '../types.ts';
 import { lookupKnownAddress } from '../data/index.ts';
@@ -7755,7 +8005,7 @@ async function getLatestBlock(url: string): Promise<bigint> {
     const json: any = await res.json();
     if (json.result) return BigInt(json.result);
   } catch {}
-  return 20000000n;
+  return 0n;
 }
 
 export function subscribeToLargeTransactions(
@@ -7775,6 +8025,7 @@ export function subscribeToLargeTransactions(
   const pollInterval = setInterval(async () => {
     try {
       const currentBlock = await getLatestBlock(url);
+      if (currentBlock === 0n) return;
       if (lastCheckedBlock === 0n) {
         lastCheckedBlock = currentBlock > 1n ? currentBlock - 1n : currentBlock;
         return;
@@ -7783,7 +8034,6 @@ export function subscribeToLargeTransactions(
 
       const fromBlock = '0x' + (lastCheckedBlock + 1n).toString(16);
       const toBlock = '0x' + currentBlock.toString(16);
-      lastCheckedBlock = currentBlock;
 
       const res = await fetch(url, {
         method: 'POST',
@@ -7805,6 +8055,9 @@ export function subscribeToLargeTransactions(
 
       const data: any = await res.json();
       const transfers = data?.result?.transfers || [];
+      // Advance lastCheckedBlock only after successful fetch
+      lastCheckedBlock = currentBlock;
+
       for (const t of transfers) {
         const val = Number(t.value || 0);
         const asset = (t.asset || 'ETH').toUpperCase();
@@ -7815,8 +8068,9 @@ export function subscribeToLargeTransactions(
 
         if (usdValue >= minUSD) {
           const targetAddr = t.from || t.to;
-          const knownFrom = lookupKnownAddress(t.from);
-          const knownTo = lookupKnownAddress(t.to);
+          if (!targetAddr) continue;
+          const knownFrom = t.from ? lookupKnownAddress(t.from) : null;
+          const knownTo = t.to ? lookupKnownAddress(t.to) : null;
           const isAccumulation = Boolean(knownTo && !knownFrom);
 
           callback({
@@ -8108,7 +8362,7 @@ export function startWorkflow(intervalMs = 1000): () => void {
 
 
 ================================================================================
-FILE: packages/agents-core/src/workflows/treasuryWorkflow.ts (89 lines)
+FILE: packages/agents-core/src/workflows/treasuryWorkflow.ts (93 lines)
 ================================================================================
 import { ethers } from "ethers";
 import { watchTreasury } from "../agents/watcherAgent.ts";
@@ -8179,17 +8433,21 @@ export async function runTreasuryWorkflow(address: string, policy?: string) {
     };
 
     return {
+      error: err instanceof Error ? err.message : String(err),
       snapshot: null,
       risk: {
-        level: "HIGH",
-        score: 0,
-        issues: ["System failure during treasury analysis"]
+        address,
+        level: "HIGH" as const,
+        score: 100,
+        tier: "CRITICAL" as const,
+        narrative: "Internal telemetry failure: unable to establish secure on-chain consensus.",
+        issues: ["System failure during treasury analysis: " + (err instanceof Error ? err.message : String(err))]
       },
       plan: {
         actions: [
           {
             type: "ALERT",
-            message: "Emergency mode: treasury analysis unavailable."
+            message: "Emergency mode: treasury analysis unavailable. Manual review required."
           }
         ]
       },
@@ -8413,6 +8671,35 @@ try {
 } catch {
   // non-fatal
 }
+
+
+
+================================================================================
+FILE: scripts/clean.ts (24 lines)
+================================================================================
+import fs from 'fs';
+import path from 'path';
+
+const targets = [
+  'dist',
+  '.next',
+  'apps/api/dist',
+  'apps/web/.next',
+  'packages/agents-core/dist',
+];
+
+for (const target of targets) {
+  const fullPath = path.resolve(process.cwd(), target);
+  if (fs.existsSync(fullPath)) {
+    try {
+      fs.rmSync(fullPath, { recursive: true, force: true });
+      console.log(`Cleaned ${target}`);
+    } catch (err) {
+      console.warn(`Failed to clean ${target}:`, err);
+    }
+  }
+}
+console.log('Build artifacts cleaned successfully.');
 
 
 

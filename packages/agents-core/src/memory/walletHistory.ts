@@ -29,22 +29,7 @@ export async function backfill(address: string): Promise<void> {
     for (const tx of txs) {
       await append(address, tx);
     }
-    const current = await getHistory(address);
-    if (current.length < 5) {
-      const needed = 5 - current.length;
-      for (let i = 0; i < needed; i++) {
-        await append(address, {
-          address,
-          amount: '10.0',
-          token: 'ETH',
-          timestamp: Date.now() - (i + 1) * 3600000,
-          txHash: `0xbaseline_${address.slice(2, 8)}_${i}`,
-          label: 'Baseline Activity',
-          intent: 'ACCUMULATION',
-        });
-      }
-    }
-    console.log(`[walletHistory] Backfilled baseline history for ${address}`);
+    console.log(`[walletHistory] Backfilled ${txs.length} transactions for ${address}`);
   } catch (err) {
     console.warn(`[walletHistory] Backfill failed for ${address}:`, err);
   }
