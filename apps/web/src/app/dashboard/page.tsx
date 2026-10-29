@@ -356,7 +356,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Sub-grid of cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 max-h-[480px] overflow-y-auto pr-1">
                 {watchedPositions.length === 0 && watchedWallets.length === 0 ? (
                   <div className="col-span-full border-2 border-dashed border-gray-300 p-8 text-center bg-[#fafafa]">
                     <div className="w-8 h-8 mx-auto mb-2 border-2 border-black bg-white flex items-center justify-center font-mono font-bold text-xs shadow-hard-sm">
@@ -377,7 +377,12 @@ export default function DashboardPage() {
                       ))}
 
                     {(streamFilter === "ALL" || streamFilter === "WALLETS") &&
-                      watchedWallets.map((wallet, idx) => (
+                      (streamFilter === "ALL"
+                        ? watchedWallets.filter(
+                            (w) => !watchedPositions.some((p) => p.address.toLowerCase() === w.address.toLowerCase())
+                          )
+                        : watchedWallets
+                      ).map((wallet, idx) => (
                         <WalletCard key={`wallet-${wallet.address}-${idx}`} wallet={wallet} />
                       ))}
                   </>
@@ -386,7 +391,14 @@ export default function DashboardPage() {
             </div>
 
             <div className="border-t-2 border-black pt-3 flex justify-between items-center font-mono text-[11px] text-gray-500">
-              <span>ACTIVE TARGETS: {watchedPositions.length + watchedWallets.length} ENTITIES</span>
+              <span>
+                ACTIVE TARGETS:{" "}
+                {watchedPositions.length +
+                  watchedWallets.filter(
+                    (w) => !watchedPositions.some((p) => p.address.toLowerCase() === w.address.toLowerCase())
+                  ).length}{" "}
+                ENTITIES
+              </span>
               <span className="font-bold text-black">AAVE V3 // MEMPOOL RADAR</span>
             </div>
           </div>

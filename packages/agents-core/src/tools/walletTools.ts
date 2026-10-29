@@ -1,5 +1,6 @@
 import type { WhaleScanResult } from '../types.ts';
 import { lookupKnownAddress } from '../data/index.ts';
+import * as priceTools from './priceTools.ts';
 
 async function getLatestBlock(url: string): Promise<bigint> {
   try {
@@ -64,13 +65,14 @@ export function subscribeToLargeTransactions(
       for (const t of transfers) {
         const val = Number(t.value || 0);
         const asset = (t.asset || 'ETH').toUpperCase();
-        const multiplier = asset === 'WBTC' ? 65000 : asset === 'ETH' || asset === 'WETH' ? 2800 : 1;
-        const usdValue = val * multiplier;
+        const price = await priceTools.getTokenPriceUSD(asset);
+        if (price <= 0) continue;
+        const usdValue = val * price;
 
         if (usdValue >= minUSD) {
           callback({
             address: t.to || t.from,
-            amount: t.value?.toString() || '0',
+            amount: usdValue.toFixed(2),
             token: asset,
             timestamp: Date.now(),
             txHash: t.hash,
@@ -122,15 +124,23 @@ export async function fetchRecentTransactions(
     const data: any = await response.json();
     const transfers = data.result?.transfers || [];
 
-    return transfers.map((t: any) => ({
-      address,
-      amount: t.value?.toString() || '0',
-      token: t.asset || 'ETH',
-      timestamp: Date.now(),
-      txHash: t.hash,
-      label: lookupKnownAddress(address) || 'Whale Multisig',
-      intent: 'ACCUMULATION' as const,
-    }));
+    const results: WhaleScanResult[] = [];
+    for (const t of transfers) {
+      const val = Number(t.value || 0);
+      const asset = (t.asset || 'ETH').toUpperCase();
+      const price = await priceTools.getTokenPriceUSD(asset);
+      const usdValue = price > 0 ? val * price : val;
+      results.push({
+        address,
+        amount: usdValue.toFixed(2),
+        token: asset,
+        timestamp: Date.now(),
+        txHash: t.hash,
+        label: lookupKnownAddress(address) || 'Whale Multisig',
+        intent: 'ACCUMULATION' as const,
+      });
+    }
+    return results;
   } catch (err) {
     console.warn(`[walletTools] Failed to fetch transactions for ${address}:`, err);
     return [];

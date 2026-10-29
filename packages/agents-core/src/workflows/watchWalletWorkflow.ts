@@ -31,9 +31,6 @@ export async function registerWallet(address: string): Promise<void> {
 export async function processTransaction(scan: WhaleScanResult): Promise<void> {
     const addr = scan.address.toLowerCase();
     await walletHistory.append(scan.address, scan);
-    if (!registeredWallets.has(addr)) {
-        await registerWallet(scan.address);
-    }
     const intentResult = await classifyIntent(scan.address);
     const alert = await formatAlert(scan, intentResult.intent, intentResult.label);
     if (!alert) return;

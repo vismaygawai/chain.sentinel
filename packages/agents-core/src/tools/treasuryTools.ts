@@ -63,8 +63,8 @@ export const treasuryTools = {
 /**
  * Qwen LLM integration for ADK agents with retry logic
  */
-export async function callQwenLLM(prompt: string, retries: number = 2): Promise<string> {
-  const timeout = 15000; // 15s timeout
+export async function callQwenLLM(prompt: string, retries: number = 1): Promise<string> {
+  const timeout = 2500; // 15s timeout
 
   for (let attempt = 0; attempt < retries; attempt++) {
     try {

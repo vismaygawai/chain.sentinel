@@ -25,6 +25,7 @@ export function useRiskScan() {
 
     setLoading(true);
     setError(null);
+    setResult(null);
     setStep("FETCHING_BALANCES");
 
     try {

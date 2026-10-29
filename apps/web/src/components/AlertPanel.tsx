@@ -14,8 +14,10 @@ function truncateTxHash(hash: string): string {
   return `${hash.slice(0, 10)}...${hash.slice(-6)}`;
 }
 
-function formatUSD(value: string): string {
-  const num = parseFloat(value);
+function formatUSD(value: string | number): string {
+  const num = typeof value === 'number' ? value : parseFloat(value);
+  if (!isFinite(num) || isNaN(num)) return '$0.00';
+  if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(2)}B`;
   if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`;
   if (num >= 1_000) return `$${(num / 1_000).toFixed(1)}K`;
   return `$${num.toFixed(2)}`;

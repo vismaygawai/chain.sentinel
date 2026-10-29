@@ -6,6 +6,10 @@ interface PriceCacheEntry {
 const priceCache = new Map<string, PriceCacheEntry>();
 const CACHE_TTL_MS = 60_000; // 1 minute
 
+const KNOWN_STABLECOINS = new Set([
+  'USDT', 'USDC', 'DAI', 'USDE', 'FDUSD', 'PYUSD', 'LUSD', 'BUSD', 'TUSD', 'GUSD', 'FRAX'
+]);
+
 // Fallback prices in case external APIs are rate-limited or offline
 const FALLBACK_PRICES: Record<string, number> = {
   ETH: 2850.0,
@@ -20,6 +24,10 @@ const FALLBACK_PRICES: Record<string, number> = {
   AAVE: 112.4,
   MATIC: 0.42,
   SOL: 145.0,
+  MKR: 1450.0,
+  PEPE: 0.0000095,
+  SHIB: 0.000018,
+  SUPRA: 0.015,
 };
 
 const COINGECKO_ID_MAP: Record<string, string> = {
@@ -35,6 +43,9 @@ const COINGECKO_ID_MAP: Record<string, string> = {
   AAVE: 'aave',
   MATIC: 'matic-network',
   SOL: 'solana',
+  MKR: 'maker',
+  PEPE: 'pepe',
+  SHIB: 'shiba-inu',
 };
 
 /**
@@ -49,7 +60,7 @@ export async function getTokenPriceUSD(symbol: string): Promise<number> {
 
   const coinId = COINGECKO_ID_MAP[sym];
   if (!coinId) {
-    return FALLBACK_PRICES[sym] || 1.0;
+    return FALLBACK_PRICES[sym] ?? (KNOWN_STABLECOINS.has(sym) ? 1.0 : 0);
   }
 
   try {
@@ -99,7 +110,7 @@ export async function getTokenPriceUSD(symbol: string): Promise<number> {
     // Fallback to static reference table
   }
 
-  const fallback = FALLBACK_PRICES[sym] || 1.0;
+  const fallback = FALLBACK_PRICES[sym] ?? (KNOWN_STABLECOINS.has(sym) ? 1.0 : 0);
   priceCache.set(sym, { priceUSD: fallback, timestamp: Date.now() });
   return fallback;
 }

@@ -41,19 +41,22 @@ function calculateGaugeFill(hf: number): number {
 export default function PositionCard({ position }: PositionCardProps) {
   const latestSnapshot = position.snapshots?.[0];
   const hf = latestSnapshot ? parseFloat(latestSnapshot.healthFactor) : 0;
+  const debtVal = parseFloat(latestSnapshot?.debt || '0');
+  const isNoDebt = debtVal === 0 || hf > 100 || !isFinite(hf);
 
   let tier: RiskTier;
-  if (hf < 1.1) tier = 'CRITICAL';
+  if (isNoDebt) tier = 'SAFE';
+  else if (hf < 1.1) tier = 'CRITICAL';
   else if (hf < 1.3) tier = 'DANGER';
   else if (hf < 2.0) tier = 'WARNING';
   else tier = 'SAFE';
 
   const tierConfig = getTierConfig(tier);
-  const gaugeFill = calculateGaugeFill(hf);
+  const gaugeFill = isNoDebt ? 100 : calculateGaugeFill(hf);
 
   return (
     <div
-      className={`group bg-white border-2 border-black p-6 flex flex-col gap-5 transition-all hover:shadow-hard-lg shadow-hard hover:-translate-y-1 relative ${
+      className={`group bg-white border-2 border-black p-6 flex flex-col gap-5 transition-all hover:shadow-hard-lg shadow-hard hover:-translate-y-1 relative overflow-hidden ${
         tier === 'CRITICAL' ? 'border-red-600' : ''
       }`}
     >
@@ -73,13 +76,19 @@ export default function PositionCard({ position }: PositionCardProps) {
         <div className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest">
           Lending Health Factor
         </div>
-        <div className="font-display text-4xl font-black text-black">
-          {hf > 0 ? hf.toFixed(2) : '—'}
+        <div className="font-display text-3xl sm:text-4xl font-black text-black max-w-full overflow-hidden truncate">
+          {isNoDebt ? '∞ (NO DEBT)' : hf > 0 ? hf.toFixed(2) : '—'}
         </div>
         <div className="w-full bg-[#f4f4f4] border-2 border-black h-3 overflow-hidden mt-1">
           <div
             className={`h-full transition-all duration-500 ${
-              tier === 'CRITICAL' || tier === 'DANGER' ? 'bg-red-600' : tier === 'WARNING' ? 'bg-yellow-400' : 'bg-green-500'
+              isNoDebt
+                ? 'bg-green-500'
+                : tier === 'CRITICAL' || tier === 'DANGER'
+                ? 'bg-red-600'
+                : tier === 'WARNING'
+                ? 'bg-yellow-400'
+                : 'bg-green-500'
             }`}
             style={{ width: `${gaugeFill}%` }}
           />
@@ -103,12 +112,12 @@ export default function PositionCard({ position }: PositionCardProps) {
       </div>
 
       {/* Interactive Hover-Reveal */}
-      <div className="border-t-2 border-black pt-3 max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100 transition-all duration-200 overflow-hidden">
+      <div className="border-t-2 border-black pt-3 max-h-0 opacity-0 group-hover:max-h-32 group-hover:opacity-100 transition-all duration-200 overflow-hidden">
         <span className="font-mono text-[10px] text-electric font-bold block mb-1">
           {"// SENTINEL DEFENSIVE RECOMMENDATION"}
         </span>
-        <p className="font-mono text-xs text-gray-800">
-          {hf < 1.3
+        <p className="font-mono text-xs text-gray-800 leading-relaxed">
+          {!isNoDebt && hf < 1.3
             ? `Execute emergency partial repay to elevate HF above 1.50 threshold.`
             : `Position safe. Continuous polling frequency set at 3.0s.`}
         </p>
