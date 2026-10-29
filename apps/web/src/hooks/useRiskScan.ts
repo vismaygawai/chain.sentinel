@@ -43,11 +43,16 @@ export function useRiskScan() {
       clearTimeout(t2);
       clearTimeout(t3);
 
-      // Register background monitoring in parallel and await persistence
-      await Promise.allSettled([
-        registerWhaleWatcher(address),
-        registerLiquidShield(address),
-      ]);
+      // Only register LiquidShield if the wallet actually has an active lending position
+      const hasLending =
+        Boolean(scanResult?.risk?.healthFactor && scanResult.risk.healthFactor < 100) ||
+        Boolean(scanResult?.snapshot?.positions?.some((p) => p.token === 'Aave V3 Collateral'));
+
+      const monitoringTasks: Promise<unknown>[] = [registerWhaleWatcher(address)];
+      if (hasLending) {
+        monitoringTasks.push(registerLiquidShield(address));
+      }
+      await Promise.allSettled(monitoringTasks);
 
       setResult(scanResult);
       setStep("COMPLETE");

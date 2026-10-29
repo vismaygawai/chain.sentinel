@@ -21,7 +21,7 @@ export class AtpService {
     symbol: 'cSNT',
     description: 'Autonomous multi-agent on-chain intelligence & defensive liquidation prevention for DeFi treasuries.',
     version: '1.0.0',
-    treasuryAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+    treasuryAddress: process.env.ATP_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000',
     policyProfile: 'CONSERVATIVE',
     capabilities: [
       'aave-v3-liquidation-protection',

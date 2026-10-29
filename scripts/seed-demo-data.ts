@@ -5,24 +5,9 @@
 
 import { prisma } from '../packages/agents-core/src/database.ts';
 
-const DEMO_WALLETS = [
-  {
-    address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', // vitalik.eth
-    type: 'DAO_TREASURY',
-  },
-  {
-    address: '0x577da75775b0606b5d92582b1c67e9154b7c62c3', // Aave Whale Borrower
-    type: 'WHALE_BORROWER',
-  },
-  {
-    address: '0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503', // Binance Hot Wallet
-    type: 'CEX_EXCHANGE',
-  },
-  {
-    address: '0x1b7BAa734C00298b9429b518D621753Bb0f6efF2', // MakerDAO Multisig
-    type: 'DAO_TREASURY',
-  },
-];
+const DEMO_WALLETS: Array<{ address: string; type: string }> = process.env.SEED_DEMO_WALLETS
+  ? JSON.parse(process.env.SEED_DEMO_WALLETS)
+  : [];
 
 async function seed() {
   console.log('========================================================');

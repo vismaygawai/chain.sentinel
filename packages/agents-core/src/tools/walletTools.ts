@@ -2,6 +2,10 @@ import type { WhaleScanResult } from '../types.ts';
 import { lookupKnownAddress } from '../data/index.ts';
 import * as priceTools from './priceTools.ts';
 
+const ALLOWED_ASSETS = new Set([
+  'ETH', 'WETH', 'USDT', 'USDC', 'DAI', 'WBTC', 'BTC', 'LINK', 'UNI', 'AAVE', 'MKR', 'PEPE', 'SHIB'
+]);
+
 async function getLatestBlock(url: string): Promise<bigint> {
   try {
     const res = await fetch(url, {
@@ -65,6 +69,7 @@ export function subscribeToLargeTransactions(
       for (const t of transfers) {
         const val = Number(t.value || 0);
         const asset = (t.asset || 'ETH').toUpperCase();
+        if (!ALLOWED_ASSETS.has(asset)) continue;
         const price = await priceTools.getTokenPriceUSD(asset);
         if (price <= 0) continue;
         const usdValue = val * price;
@@ -128,6 +133,7 @@ export async function fetchRecentTransactions(
     for (const t of transfers) {
       const val = Number(t.value || 0);
       const asset = (t.asset || 'ETH').toUpperCase();
+      if (!ALLOWED_ASSETS.has(asset)) continue;
       const price = await priceTools.getTokenPriceUSD(asset);
       const usdValue = price > 0 ? val * price : val;
       results.push({

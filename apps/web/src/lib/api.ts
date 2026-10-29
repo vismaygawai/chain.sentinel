@@ -2,85 +2,7 @@ import type { TreasuryScanResult, WalletInfo } from "@/types/index";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-/**
- * Deterministic fallback treasury snapshot for offline demonstration
- */
-export const DEMO_PRESET_TREASURIES: Record<string, TreasuryScanResult> = {
-  "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045": {
-    snapshot: {
-      address: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-      totalUsdValue: 18450200.5,
-      positions: [
-        { token: "ETH", balance: 4850.2, usdValue: 13823070.0 },
-        { token: "USDT", balance: 2500000.0, usdValue: 2500000.0 },
-        { token: "USDC", balance: 1450000.0, usdValue: 1450000.0 },
-        { token: "WBTC", balance: 10.5, usdValue: 677130.5 },
-      ],
-    },
-    risk: {
-      address: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-      level: "LOW",
-      score: 18,
-      tier: "SAFE",
-      healthFactor: 2.85,
-      narrative: "Well-diversified treasury reserves with over $3.95M stablecoin buffer and low liquidation sensitivity.",
-      issues: [],
-    },
-    plan: {
-      actions: [
-        { type: "ALERT", message: "Automated sentinel surveillance active. Exposure well within policy limits." },
-      ],
-    },
-    decision: {
-      approved: true,
-      reason: "Low systemic risk profile. Reserve capital adequacy confirmed above 95% threshold.",
-      enforcedActions: [
-        { type: "ALERT", message: "Automated sentinel surveillance active. Exposure well within policy limits." },
-      ],
-    },
-  },
-  "0x577da75775b0606b5d92582b1c67e9154b7c62c3": {
-    snapshot: {
-      address: "0x577da75775b0606b5d92582b1c67e9154b7c62c3",
-      totalUsdValue: 9420000.0,
-      positions: [
-        { token: "ETH", balance: 1200.0, usdValue: 3420000.0 },
-        { token: "USDC", balance: 6000000.0, usdValue: 6000000.0 },
-      ],
-    },
-    risk: {
-      address: "0x577da75775b0606b5d92582b1c67e9154b7c62c3",
-      level: "HIGH",
-      score: 78,
-      tier: "DANGER",
-      healthFactor: 1.14,
-      narrative: "Critical liquidation proximity detected on Aave V3. Health factor 1.14 approaches liquidation threshold (1.0).",
-      issues: [
-        "Health factor 1.14 is below safe threshold 1.30",
-        "Estimated liquidation price: ETH drop below $2,490 triggers liquidation cascade",
-        "Borrow debt: $5,200,000 against volatile collateral",
-      ],
-    },
-    plan: {
-      actions: [
-        { type: "REDUCE", message: "Repay $1,050,000 USDC debt immediately to restore health factor to 1.45." },
-        { type: "ALERT", message: "Broadcast emergency warning to Multisig signers via Sentinel Webhook." },
-      ],
-    },
-    decision: {
-      approved: true,
-      reason: "Emergency threshold triggered: HIGH risk debt position requires instant defensive rebalancing.",
-      enforcedActions: [
-        { type: "REDUCE", message: "Repay $1,050,000 USDC debt immediately to restore health factor to 1.45." },
-        { type: "ALERT", message: "Broadcast emergency warning to Multisig signers via Sentinel Webhook." },
-      ],
-    },
-  },
-};
-
 export async function runRiskScan(address: string, policy?: string): Promise<TreasuryScanResult> {
-  const normalized = address.toLowerCase();
-
   try {
     const res = await fetch(`${API_BASE}/api/risk-scan`, {
       method: "POST",
@@ -107,13 +29,6 @@ export async function runRiskScan(address: string, policy?: string): Promise<Tre
     }
   } catch {
     console.warn(`[ChainSentinel] Real-time scan endpoint ${API_BASE}/api/risk-scan unreachable. Check if API server is running on port 3001.`);
-  }
-
-  // Baseline offline preview only if API server is offline
-  for (const [key, preset] of Object.entries(DEMO_PRESET_TREASURIES)) {
-    if (key.toLowerCase() === normalized) {
-      return preset;
-    }
   }
 
   return {

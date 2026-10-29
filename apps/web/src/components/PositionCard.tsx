@@ -76,8 +76,15 @@ export default function PositionCard({ position }: PositionCardProps) {
         <div className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest">
           Lending Health Factor
         </div>
-        <div className="font-display text-3xl sm:text-4xl font-black text-black max-w-full overflow-hidden truncate">
-          {isNoDebt ? '∞ (NO DEBT)' : hf > 0 ? hf.toFixed(2) : '—'}
+        <div className="flex items-baseline justify-center gap-2 max-w-full">
+          <span className="font-display text-4xl font-black text-black">
+            {isNoDebt ? '∞' : hf > 0 ? hf.toFixed(2) : '—'}
+          </span>
+          {isNoDebt && (
+            <span className="font-mono text-[10px] font-bold text-gray-600 uppercase tracking-wider bg-gray-100 border border-black px-1.5 py-0.5">
+              NO DEBT
+            </span>
+          )}
         </div>
         <div className="w-full bg-[#f4f4f4] border-2 border-black h-3 overflow-hidden mt-1">
           <div

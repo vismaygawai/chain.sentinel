@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
@@ -44,10 +44,15 @@ export default function DashboardPage() {
       }
       setWatchedWallets(Array.from(uniqueWalletsMap.values()));
 
-      // Deduplicate positions
+      // Deduplicate positions - only include active lending positions with real collateral or debt
       const uniquePositionsMap = new Map<string, LiquidShieldPosition>();
       for (const m of monitored) {
-        if (m.ls?.active && m.ls.lastSnapshot && m.address) {
+        const latestSnap = m.ls?.lastSnapshot?.[0];
+        const hasCollateralOrDebt =
+          latestSnap &&
+          (parseFloat(latestSnap.collateral || '0') > 0 || parseFloat(latestSnap.debt || '0') > 0);
+
+        if (m.ls?.active && hasCollateralOrDebt && m.address) {
           uniquePositionsMap.set(m.address.toLowerCase(), {
             address: m.address,
             protocol: "aave-v3",
@@ -63,55 +68,12 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Load user's registered surveillance workflows on mount
-  useEffect(() => {
-    let isCancelled = false;
-    getMonitoredWorkflows()
-      .then((monitored) => {
-        if (isCancelled) return;
-        const uniqueWalletsMap = new Map<string, WalletInfo>();
-        for (const w of monitored) {
-          if (w.address) {
-            uniqueWalletsMap.set(w.address.toLowerCase(), w);
-          }
-        }
-        setWatchedWallets(Array.from(uniqueWalletsMap.values()));
-
-        const uniquePositionsMap = new Map<string, LiquidShieldPosition>();
-        for (const m of monitored) {
-          if (m.ls?.active && m.ls.lastSnapshot && m.address) {
-            uniquePositionsMap.set(m.address.toLowerCase(), {
-              address: m.address,
-              protocol: "aave-v3",
-              snapshots: m.ls.lastSnapshot || [],
-            });
-          }
-        }
-        setWatchedPositions(Array.from(uniquePositionsMap.values()));
-      })
-      .catch(() => {
-        if (isCancelled) return;
-        setWatchedWallets([]);
-        setWatchedPositions([]);
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
-
   const handleScanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (addressInput.trim()) {
       await scan(addressInput.trim(), activePolicy);
       await fetchMonitored();
     }
-  };
-
-  const loadPreset = async (presetAddr: string) => {
-    setAddressInput(presetAddr);
-    await scan(presetAddr, activePolicy);
-    await fetchMonitored();
   };
 
   const totalMonitoredVal = result?.snapshot?.totalUsdValue !== undefined ? result.snapshot.totalUsdValue : 0;
@@ -129,33 +91,14 @@ export default function DashboardPage() {
       />
 
       {/* =========================================================================
-          LIVE TELEMETRY BANNER & OPTIONAL SAMPLE TARGETS
+          LIVE TELEMETRY BANNER
       ========================================================================= */}
       <section className="border-b-2 border-black bg-white py-4 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 font-mono text-xs">
           
-          {/* Optional sample targets for testing */}
+          {/* Active target / Reset */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-bold text-gray-500 uppercase mr-1">TRY VERIFIED SAMPLES:</span>
-            <button
-              type="button"
-              onClick={() => loadPreset("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")}
-              className={`border-2 border-black px-3 py-1 font-bold shadow-hard-sm transition-all ${
-                addressInput.toLowerCase().includes("d8da") ? "bg-black text-white" : "bg-white hover:bg-gray-100 text-black"
-              }`}
-            >
-              Vitalik (0xd8dA...6045)
-            </button>
-            <button
-              type="button"
-              onClick={() => loadPreset("0x577da75775b0606b5d92582b1c67e9154b7c62c3")}
-              className={`border-2 border-black px-3 py-1 font-bold shadow-hard-sm transition-all ${
-                addressInput.toLowerCase().includes("577d") ? "bg-black text-white" : "bg-white hover:bg-gray-100 text-black"
-              }`}
-            >
-              Aave Whale (0x577d...62c3)
-            </button>
-            {(addressInput || result) && (
+            {(addressInput || result) ? (
               <button
                 type="button"
                 onClick={handleClear}
@@ -163,6 +106,10 @@ export default function DashboardPage() {
               >
                 Reset Grid ✕
               </button>
+            ) : (
+              <span className="font-mono text-xs text-gray-500 uppercase tracking-wide">
+                DEEP SURVEILLANCE MATRIX // READY FOR TARGET INPUT
+              </span>
             )}
           </div>
 

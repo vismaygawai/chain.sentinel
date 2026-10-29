@@ -70,7 +70,6 @@ export async function registerLiveFeed(fastify: FastifyInstance): Promise<void> 
 
     const handleConnection = (socket: any, _request: any) => {
         connectedClients.add(socket);
-        replayTo(socket);
 
         socket.isAlive = true;
         socket.on('pong', () => { socket.isAlive = true; });

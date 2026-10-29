@@ -110,7 +110,7 @@ export default function AllocationChart({ positions, totalUsdValue }: Allocation
               NO ASSET POSITIONS DETECTED
             </p>
             <p className="font-mono text-xs text-gray-500 max-w-sm">
-              Use a preset above (e.g. Vitalik Treasury or At-Risk Whale) to inspect simulated and verified on-chain token distributions.
+              Enter an EVM wallet, multisig, or treasury address above to inspect live on-chain token distributions and concentration risk.
             </p>
           </div>
         )}
