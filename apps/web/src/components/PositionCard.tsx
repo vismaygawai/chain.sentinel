@@ -1,14 +1,10 @@
 'use client';
 
 import type { LiquidShieldPosition, RiskTier } from '@/types';
-import { formatCompactUSD } from '@/lib/api';
+import { formatAddress, formatCompactUSD } from '@/lib/api';
 
 interface PositionCardProps {
   position: LiquidShieldPosition;
-}
-
-function truncateAddress(address: string): string {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
 function getTierConfig(tier: RiskTier): { label: string; className: string } {
@@ -60,7 +56,7 @@ export default function PositionCard({ position }: PositionCardProps) {
         <div>
           <span className="font-mono text-xs text-gray-500 block uppercase">Aave V3 Position</span>
           <span className="font-mono text-sm font-bold text-electric">
-            {truncateAddress(position.address)}
+            {formatAddress(position.address)}
           </span>
         </div>
         <div className={`px-2.5 py-1 text-xs font-mono font-black uppercase border-2 border-black ${tierConfig.className}`}>

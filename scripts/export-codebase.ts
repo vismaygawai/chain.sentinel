@@ -47,12 +47,10 @@ function run() {
   const chunks: string[] = [];
 
   chunks.push('================================================================================');
-  chunks.push('CHAIN SENTINEL - FULL CODEBASE & SPECIFICATIONS EXPORT');
+  chunks.push('CHAIN.SENTINEL - FULL CODEBASE & SPECIFICATIONS EXPORT');
   chunks.push(`Generated: ${new Date().toISOString()}`);
   chunks.push('Repository: https://github.com/vismaygawai/chain.sentinel');
-  chunks.push('Live Web Dashboard: https://chain-sentinel-web.vercel.app/');
-  chunks.push('Live API Service: https://chain-sentinel.onrender.com/');
-  chunks.push('Team: WWHS? | Hackathon: ELECTROTHON 8.0');
+  chunks.push('Author & Maintainer: Vismay');
   chunks.push('================================================================================\n');
 
   chunks.push('TABLE OF CONTENTS & FILE INDEX:');

@@ -3,7 +3,7 @@
 The Chain Sentinel backend service (`apps/api`) exposes high-performance REST endpoints and a real-time WebSocket event feed powered by Fastify.
 
 Default Base URL: `http://localhost:3001`  
-WebSocket Stream: `ws://localhost:3001/ws`
+WebSocket Stream: `ws://localhost:3001/ws/feed` (also mounted at `/ws`)
 
 ---
 
@@ -110,11 +110,13 @@ Retrieves historical alerts and correlator window statistics.
 - **Response (200 OK)**:
   ```json
   {
+    "alerts": [],
     "totalAlerts": 12,
     "windowStats": {
-      "activeWhaleEvents": 4,
-      "activeLiquidationRisks": 2,
-      "correlatedCompoundCount": 1
+      "whaleCount": 4,
+      "liquidationCount": 2,
+      "activeWhaleAlerts": 4,
+      "activeLiquidationAlerts": 2
     }
   }
   ```
@@ -138,34 +140,39 @@ Retrieves historical alerts and correlator window statistics.
 
 - `GET /api/atp/status` — Reports ATP connection and agent status.
 - `GET /api/atp/metadata` — Returns published agent capabilities, token symbol (`cSNT`), and version.
-- `POST /api/atp/register` — Registers new tokenized agent deployment instance.
+- `POST /api/atp/register` — Registers new tokenized agent deployment instance (requires `x-api-key` header matching `ATP_API_KEY`).
 
 ---
 
 ## 3. WebSocket Real-Time Event Protocol
 
-Connect to `ws://localhost:3001/ws` to receive instant on-chain threat streams.
+Connect to `ws://localhost:3001/ws/feed` (or `/ws`) to receive instant on-chain threat streams.
 
 ### Stream Payloads:
 
-#### Compound Threat Alert:
+#### Compound Threat Alert (`type`: `"WHALE" | "LIQUIDATION" | "COMPOUND"`):
 ```json
 {
-  "type": "COMPOUND_ALERT",
-  "data": {
+  "type": "COMPOUND",
+  "alert": {
     "walletAddress": "0x577da75775b0606b5d92582b1c67e9154b7c62c3",
     "isCorrelated": true,
     "combinedUrgency": "CRITICAL",
     "wwAlert": {
+      "address": "0x577da75775b0606b5d92582b1c67e9154b7c62c3",
       "amount": "1500000",
       "token": "USDC",
-      "txHash": "0x9f1a...48b2"
+      "txHash": "0x9f1a...48b2",
+      "timestamp": 1761700000000
     },
     "lsAlert": {
+      "walletAddress": "0x577da75775b0606b5d92582b1c67e9154b7c62c3",
       "healthFactor": "1.14",
       "collateral": "9420000",
-      "debt": "5200000"
+      "debt": "5200000",
+      "protocol": "aave-v3"
     }
-  }
+  },
+  "timestamp": "2026-11-25T00:00:00.000Z"
 }
 ```

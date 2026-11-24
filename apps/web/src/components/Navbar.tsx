@@ -61,10 +61,11 @@ export default function Navbar() {
           </div>
 
           {/* Launch / Action CTA */}
-          <Link href="/dashboard" className="shrink-0">
-            <button className="border-2 border-black px-3 py-1.5 sm:px-5 sm:py-2.5 bg-electric text-white font-display text-[11px] sm:text-xs font-black uppercase tracking-wider sm:tracking-widest whitespace-nowrap shadow-hard-sm sm:shadow-hard hover:shadow-hard-md hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all">
-              Launch App →
-            </button>
+          <Link
+            href="/dashboard"
+            className="shrink-0 border-2 border-black px-3 py-1.5 sm:px-5 sm:py-2.5 bg-electric text-white font-display text-[11px] sm:text-xs font-black uppercase tracking-wider sm:tracking-widest whitespace-nowrap shadow-hard-sm sm:shadow-hard hover:shadow-hard-md hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
+          >
+            Launch App →
           </Link>
         </div>
       </div>

@@ -1,5 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { isAddress } from 'ethers';
+import { getAddress, isAddress } from 'ethers';
+import { redactSecrets } from 'agents-core';
+import { ENV } from '../config/env.ts';
 import { treasuryService } from '../services/treasuryService.ts';
 import type {
   RiskScanRequestBody,
@@ -9,37 +11,49 @@ import type {
   HealthQuery,
 } from '../types/api.ts';
 
+const VALID_POLICIES = new Set(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE']);
+
+function normalizeAddress(raw?: string): string | null {
+  if (!raw || typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!isAddress(trimmed)) return null;
+  return getAddress(trimmed.toLowerCase());
+}
+
 export class ScanController {
   public static async runRiskScan(
     request: FastifyRequest<{ Body: RiskScanRequestBody }>,
     reply: FastifyReply
   ) {
     const { address, policy } = request.body || {};
-    if (!address || !isAddress(address)) {
+    const normalizedAddress = normalizeAddress(address);
+    if (!normalizedAddress) {
       return reply.status(400).send({ error: 'A valid EVM Ethereum address is required' });
     }
 
-    const VALID_POLICIES = new Set(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE']);
-    if (policy && !VALID_POLICIES.has(String(policy).toUpperCase())) {
+    const normalizedPolicy = policy ? String(policy).toUpperCase() : undefined;
+    if (normalizedPolicy && !VALID_POLICIES.has(normalizedPolicy)) {
       return reply.status(400).send({
         error: `Invalid policy '${policy}'. Allowed policies: CONSERVATIVE, BALANCED, AGGRESSIVE`,
       });
     }
 
     try {
-      const result = await treasuryService.scanTreasury(address, policy);
+      const result = await treasuryService.scanTreasury(normalizedAddress, normalizedPolicy);
       if (!result || !result.snapshot) {
+        const rawErr = (result as { error?: string })?.error;
         return reply.status(502).send({
           error: 'On-chain telemetry unavailable: RPC providers failed or treasury unreadable',
-          details: (result as any)?.error || 'All RPC endpoints failed',
+          ...(ENV.NODE_ENV === 'development' && rawErr ? { details: redactSecrets(rawErr) } : {}),
         });
       }
       return reply.send(result);
-    } catch (err: any) {
-      request.log.error(err);
+    } catch (err: unknown) {
+      const msg = redactSecrets(err instanceof Error ? err.message : String(err));
+      request.log.error({ err: msg }, 'Treasury risk scan failed');
       return reply.status(500).send({
         error: 'Treasury risk scan failed',
-        details: String(err?.message || err),
+        ...(ENV.NODE_ENV === 'development' ? { details: msg } : {}),
       });
     }
   }
@@ -48,24 +62,42 @@ export class ScanController {
     request: FastifyRequest<{ Body: WhaleRegisterRequestBody }>,
     reply: FastifyReply
   ) {
-    const { address } = request.body || {};
-    if (!address || !isAddress(address)) {
+    const normalizedAddress = normalizeAddress(request.body?.address);
+    if (!normalizedAddress) {
       return reply.status(400).send({ error: 'A valid EVM address is required' });
     }
-    const result = await treasuryService.registerWhaleWatch(address);
-    return reply.send(result);
+    try {
+      const result = await treasuryService.registerWhaleWatch(normalizedAddress);
+      return reply.send(result);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('capacity')) {
+        return reply.status(429).send({ error: msg });
+      }
+      request.log.error({ err: redactSecrets(msg) }, 'WhaleWatch registration failed');
+      return reply.status(500).send({ error: 'Failed to register WhaleWatch target' });
+    }
   }
 
   public static async registerPosition(
     request: FastifyRequest<{ Body: PositionRegisterRequestBody }>,
     reply: FastifyReply
   ) {
-    const { address } = request.body || {};
-    if (!address || !isAddress(address)) {
+    const normalizedAddress = normalizeAddress(request.body?.address);
+    if (!normalizedAddress) {
       return reply.status(400).send({ error: 'A valid EVM address is required' });
     }
-    const result = await treasuryService.registerPosition(address);
-    return reply.send(result);
+    try {
+      const result = await treasuryService.registerPosition(normalizedAddress);
+      return reply.send(result);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('capacity')) {
+        return reply.status(429).send({ error: msg });
+      }
+      request.log.error({ err: redactSecrets(msg) }, 'LiquidShield registration failed');
+      return reply.status(500).send({ error: 'Failed to register LiquidShield position' });
+    }
   }
 
   public static async getAlerts(
@@ -73,10 +105,15 @@ export class ScanController {
     reply: FastifyReply
   ) {
     const { address } = request.query;
-    if (address && !isAddress(address)) {
-      return reply.status(400).send({ error: 'Invalid address parameter' });
+    let normalizedAddress: string | undefined;
+    if (address !== undefined) {
+      const parsed = normalizeAddress(address);
+      if (!parsed) {
+        return reply.status(400).send({ error: 'Invalid address parameter' });
+      }
+      normalizedAddress = parsed;
     }
-    const result = treasuryService.getWhaleAlerts(address);
+    const result = treasuryService.getWhaleAlerts(normalizedAddress);
     return reply.send(result);
   }
 
@@ -84,18 +121,18 @@ export class ScanController {
     request: FastifyRequest<{ Querystring: HealthQuery }>,
     reply: FastifyReply
   ) {
-    const { address } = request.query;
-    if (!address || !isAddress(address)) {
+    const normalizedAddress = normalizeAddress(request.query.address);
+    if (!normalizedAddress) {
       return reply.status(400).send({ error: 'A valid EVM address is required' });
     }
-    const result = treasuryService.getHealthSnapshots(address);
+    const result = treasuryService.getHealthSnapshots(normalizedAddress);
     if (!result) {
       return reply.status(404).send({ error: 'No position snapshots found for address.' });
     }
     return reply.send(result);
   }
 
-  public static async getMonitored(request: FastifyRequest, reply: FastifyReply) {
+  public static async getMonitored(_request: FastifyRequest, reply: FastifyReply) {
     const result = await treasuryService.getMonitoredWorkflows();
     return reply.send(result);
   }

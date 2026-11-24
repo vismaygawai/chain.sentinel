@@ -17,13 +17,13 @@ const start = async () => {
     });
 
     console.log(`\n========================================================`);
-    console.log(`🛡️  CHAIN SENTINEL API RUNNING ON http://localhost:${ENV.PORT}`);
-    console.log(`📡 WebSocket Live Feed on ws://localhost:${ENV.PORT}/ws`);
+    console.log(`🛡️  CHAIN.SENTINEL API RUNNING ON http://localhost:${ENV.PORT}`);
+    console.log(`📡 WebSocket Live Feed on ws://localhost:${ENV.PORT}/ws/feed`);
     console.log(`========================================================\n`);
 
     // Start Autonomous Multi-Agent Workflows
     console.log('[ChainSentinel] Starting autonomous background workflows...');
-    watchWalletWorkflow.startWorkflow();
+    const stopWalletWatch = watchWalletWorkflow.startWorkflow();
     const stopPositionScan = scanPositionWorkflow.startWorkflow();
 
     // Sync tracked addresses from persistent local store
@@ -57,10 +57,14 @@ const start = async () => {
     }
 
     // Graceful Shutdown
+    let shuttingDown = false;
     const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
     for (const signal of signals) {
       process.on(signal, async () => {
-        console.log(`\nReceived ${signal}. Gracefully stopping Chain Sentinel server...`);
+        if (shuttingDown) return;
+        shuttingDown = true;
+        console.log(`\nReceived ${signal}. Gracefully stopping CHAIN.SENTINEL server...`);
+        stopWalletWatch?.();
         stopPositionScan?.();
         await server.close();
         process.exit(0);

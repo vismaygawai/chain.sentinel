@@ -1,6 +1,6 @@
 # Chain Sentinel Web Console
 
-The **Chain Sentinel Web Console** is a high-performance Next.js 15 operations dashboard built for real-time DeFi treasury surveillance, multi-agent exposure arbitration, and autonomous liquidation defense.
+The **CHAIN.SENTINEL Web Console** is a Next.js 16 operations dashboard built for real-time DeFi treasury surveillance, multi-agent exposure arbitration, and liquidation defense. Authored and maintained by **Vismay**.
 
 ## Core Capabilities
 
@@ -12,7 +12,7 @@ The **Chain Sentinel Web Console** is a high-performance Next.js 15 operations d
 
 ## Tech Stack
 
-- **Framework**: Next.js 15 (App Router, Turbopack)
+- **Framework**: Next.js 16 (App Router, Turbopack) & React 18
 - **Styling**: Tailwind CSS with Neo-Brutalist design language (hard borders, high contrast, zero-blur hard shadows)
 - **Web3 / Cryptography**: Ethers.js v6
 - **Real-Time Streaming**: Fastify WebSocket feed with automated heartbeat & replay buffers

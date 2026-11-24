@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
@@ -15,6 +15,47 @@ import { useRiskScan } from "@/hooks/useRiskScan";
 import { useLiveFeed } from "@/hooks/useLiveFeed";
 import { getMonitoredWorkflows, formatCurrency } from "@/lib/api";
 import type { WalletInfo, LiquidShieldPosition } from "@/types/index";
+
+async function loadMonitoredEntities(): Promise<{
+  wallets: WalletInfo[];
+  positions: LiquidShieldPosition[];
+}> {
+  try {
+    const monitored = await getMonitoredWorkflows();
+
+    // Deduplicate wallets by address to prevent React duplicate key errors
+    const uniqueWalletsMap = new Map<string, WalletInfo>();
+    for (const w of monitored) {
+      if (w.address) {
+        uniqueWalletsMap.set(w.address.toLowerCase(), w);
+      }
+    }
+
+    // Deduplicate positions - only include active lending positions with real collateral or debt
+    const uniquePositionsMap = new Map<string, LiquidShieldPosition>();
+    for (const m of monitored) {
+      const latestSnap = m.ls?.lastSnapshot?.[0];
+      const hasCollateralOrDebt =
+        latestSnap &&
+        (parseFloat(latestSnap.collateral || '0') > 0 || parseFloat(latestSnap.debt || '0') > 0);
+
+      if (m.ls?.active && hasCollateralOrDebt && m.address) {
+        uniquePositionsMap.set(m.address.toLowerCase(), {
+          address: m.address,
+          protocol: "aave-v3",
+          snapshots: m.ls.lastSnapshot || [],
+        });
+      }
+    }
+
+    return {
+      wallets: Array.from(uniqueWalletsMap.values()),
+      positions: Array.from(uniquePositionsMap.values()),
+    };
+  } catch {
+    return { wallets: [], positions: [] };
+  }
+}
 
 export default function DashboardPage() {
   const [addressInput, setAddressInput] = useState("");
@@ -34,40 +75,21 @@ export default function DashboardPage() {
   };
 
   const fetchMonitored = useCallback(async () => {
-    try {
-      const monitored = await getMonitoredWorkflows();
-      
-      // Deduplicate wallets by address to prevent React duplicate key errors
-      const uniqueWalletsMap = new Map<string, WalletInfo>();
-      for (const w of monitored) {
-        if (w.address) {
-          uniqueWalletsMap.set(w.address.toLowerCase(), w);
-        }
-      }
-      setWatchedWallets(Array.from(uniqueWalletsMap.values()));
+    const { wallets, positions } = await loadMonitoredEntities();
+    setWatchedWallets(wallets);
+    setWatchedPositions(positions);
+  }, []);
 
-      // Deduplicate positions - only include active lending positions with real collateral or debt
-      const uniquePositionsMap = new Map<string, LiquidShieldPosition>();
-      for (const m of monitored) {
-        const latestSnap = m.ls?.lastSnapshot?.[0];
-        const hasCollateralOrDebt =
-          latestSnap &&
-          (parseFloat(latestSnap.collateral || '0') > 0 || parseFloat(latestSnap.debt || '0') > 0);
-
-        if (m.ls?.active && hasCollateralOrDebt && m.address) {
-          uniquePositionsMap.set(m.address.toLowerCase(), {
-            address: m.address,
-            protocol: "aave-v3",
-            snapshots: m.ls.lastSnapshot || [],
-          });
-        }
-      }
-      setWatchedPositions(Array.from(uniquePositionsMap.values()));
-    } catch {
-      // Empty fallback
-      setWatchedWallets([]);
-      setWatchedPositions([]);
-    }
+  useEffect(() => {
+    let active = true;
+    loadMonitoredEntities().then(({ wallets, positions }) => {
+      if (!active) return;
+      setWatchedWallets(wallets);
+      setWatchedPositions(positions);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleScanSubmit = async (e: React.FormEvent) => {
@@ -141,6 +163,7 @@ export default function DashboardPage() {
             <div className="flex-1 relative">
               <input
                 type="text"
+                aria-label="EVM treasury, multisig, or wallet address"
                 value={addressInput}
                 onChange={(e) => {
                   setAddressInput(e.target.value);
@@ -155,6 +178,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={handleClear}
+                  aria-label="Clear input and reset grid"
                   title="Clear input and reset grid"
                   className="absolute right-4 top-1/2 -translate-y-1/2 w-7 h-7 border border-black bg-[#f4f4f4] hover:bg-black hover:text-white flex items-center justify-center font-mono font-bold text-xs transition-colors shadow-hard-sm"
                 >
@@ -281,6 +305,8 @@ export default function DashboardPage() {
                 {/* Filter toggle pills */}
                 <div className="flex items-center gap-1.5 font-mono text-xs">
                   <button
+                    type="button"
+                    aria-pressed={streamFilter === "ALL"}
                     onClick={() => setStreamFilter("ALL")}
                     className={`border border-black px-2 py-0.5 font-bold ${
                       streamFilter === "ALL" ? "bg-black text-white" : "bg-[#f4f4f4] hover:bg-gray-200"
@@ -289,6 +315,8 @@ export default function DashboardPage() {
                     ALL
                   </button>
                   <button
+                    type="button"
+                    aria-pressed={streamFilter === "POSITIONS"}
                     onClick={() => setStreamFilter("POSITIONS")}
                     className={`border border-black px-2 py-0.5 font-bold ${
                       streamFilter === "POSITIONS" ? "bg-black text-white" : "bg-[#f4f4f4] hover:bg-gray-200"
@@ -297,6 +325,8 @@ export default function DashboardPage() {
                     LENDING
                   </button>
                   <button
+                    type="button"
+                    aria-pressed={streamFilter === "WALLETS"}
                     onClick={() => setStreamFilter("WALLETS")}
                     className={`border border-black px-2 py-0.5 font-bold ${
                       streamFilter === "WALLETS" ? "bg-black text-white" : "bg-[#f4f4f4] hover:bg-gray-200"

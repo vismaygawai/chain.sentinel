@@ -1,16 +1,17 @@
 {
   "name": "api",
   "version": "1.0.0",
-  "description": "Chain Sentinel API",
-  "main": "index.js",
+  "description": "CHAIN.SENTINEL Fastify REST & WebSocket API",
+  "main": "src/index.ts",
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "echo 'No build needed - using tsx'",
-    "start": "tsx src/index.ts"
+    "build": "tsc --noEmit",
+    "start": "tsx src/index.ts",
+    "test": "tsx --test src/__tests__/*.test.ts"
   },
   "keywords": [],
-  "author": "WWHS?",
-  "license": "ISC",
+  "author": "Vismay",
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "@fastify/cors": "^11.1.0",
@@ -19,15 +20,15 @@
     "agents-core": "workspace:*",
     "dotenv": "^17.2.3",
     "ethers": "^6.16.0",
-    "fastify": "^5.6.2"
+    "fastify": "^5.12.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
     "@types/ws": "^8.18.2",
-    "tsx": "^4.19.2",
-    "typescript": "^5.5.3"
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   },
   "engines": {
-    "node": "24.x"
+    "node": ">=20.0.0"
   }
 }

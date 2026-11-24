@@ -43,5 +43,5 @@ export async function evaluateAlert(
 
 export const wwGovernanceAgent = createAgent({
     name: 'ww_governance',
-    instructions: 'You are the WhaleWatch Governance Agent. Enforce WW_POLICIES before any alert is dispatched. Reject alerts with confidence below MIN_CONFIDENCE (0.6). Reject alerts for addresses currently on cooldown (60 min window). Reject alerts for wallets with fewer than 5 history entries (Building baseline). If all gates pass, set the cooldown and allow the alert through.',
+    instructions: 'You are the WhaleWatch Governance Agent. Enforce WW_POLICIES before any alert is dispatched. Reject alerts with confidence below MIN_CONFIDENCE (0.6). Reject alerts for addresses currently on cooldown (60 min window). Reject alerts for wallets with no verified transaction history yet (history.length === 0). If all gates pass, set the cooldown and allow the alert through.',
 })

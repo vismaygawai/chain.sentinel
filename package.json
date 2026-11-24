@@ -1,16 +1,15 @@
 {
   "name": "chainsentinel-monorepo",
   "version": "1.0.0",
-  "description": "Chain Sentinel - Autonomous AI Multi-Agent DeFi Security & Treasury Operations Platform",
+  "description": "CHAIN.SENTINEL - Autonomous Multi-Agent DeFi Security & Treasury Operations Platform",
   "private": true,
-  "main": "index.js",
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "start:api": "pnpm --filter api start",
     "build": "pnpm exec tsx scripts/build-all.ts",
-    "test": "pnpm --filter agents-core test",
+    "test": "pnpm --filter agents-core test && pnpm --filter api test",
     "lint": "pnpm --filter web lint",
-    "typecheck": "pnpm --filter api exec tsc --noEmit && pnpm --filter agents-core exec tsc --noEmit",
+    "typecheck": "pnpm --filter agents-core exec tsc --noEmit && pnpm --filter api exec tsc --noEmit && pnpm --filter web exec tsc --noEmit",
     "seed": "pnpm exec tsx scripts/seed-demo-data.ts",
     "deploy:atp": "pnpm exec tsx scripts/deploy-atp.ts",
     "export:codebase": "pnpm exec tsx scripts/export-codebase.ts",
@@ -26,25 +25,37 @@
     "liquidshield",
     "whalewatch"
   ],
-  "author": "WWHS?",
+  "author": "Vismay",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@9.0.0",
   "engines": {
-    "node": "24.x"
+    "node": ">=20.0.0"
   },
   "dependencies": {
-    "@ai-sdk/google": "^3.0.43",
-    "@ai-sdk/openai": "^3.0.41",
-    "@iqai/adk": "^0.8.1",
-    "ai": "^6.0.116",
-    "dotenv": "^17.2.3",
-    "ethers": "^6.16.0",
-    "zod": "^4.1.13"
+    "dotenv": "^17.2.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
     "tsx": "^4.21.0",
-    "typescript": "^5.5.3"
+    "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "proxy-addr": ">=2.0.8",
+      "protobufjs": ">=7.5.6",
+      "axios": ">=1.16.0",
+      "socket.io-parser": ">=4.2.6",
+      "fast-xml-parser": ">=5.5.6",
+      "fast-xml-builder": ">=1.1.7",
+      "hono": ">=4.13.16",
+      "kysely": ">=0.28.17",
+      "@grpc/grpc-js": ">=1.14.4",
+      "@modelcontextprotocol/sdk": ">=1.26.0",
+      "fastify": ">=5.12.2",
+      "find-my-way": ">=9.7.0",
+      "ws": ">=8.21.0",
+      "zod": ">=4.6.6"
+    }
   }
 }

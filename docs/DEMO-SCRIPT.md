@@ -1,6 +1,6 @@
-# Chain Sentinel — 3-Minute Hackathon Demo & Judging Script
+# CHAIN.SENTINEL — 3-Minute Platform Walkthrough Script
 
-Use this walkthrough script when presenting Chain Sentinel to judges and evaluators at **ELECTROTHON 8.0** ([Devfolio Link](https://devfolio.co/projects/chain-sentinel-f7cf)). Built by **WWHS?**.
+Use this walkthrough script when demonstrating CHAIN.SENTINEL capabilities. Author & Maintainer: **Vismay**.
 
 ---
 
@@ -43,8 +43,8 @@ Use this walkthrough script when presenting Chain Sentinel to judges and evaluat
 
 ---
 
-## Act III: Multi-Agent Architecture & Hackathon Fit (2:00 – 3:00)
-> *"Why is Chain Sentinel a winning project for ELECTROTHON 8.0?"*
+## Act III: Multi-Agent Architecture Summary (2:00 – 3:00)
+> *"Key architectural differentiators of CHAIN.SENTINEL:"*
 
 1. **ADK-TS Native**: Built entirely around `@iqai/adk` and the Agent Development Kit for TypeScript.
 2. **Hard Safety Failsafes**: LLMs provide predictive strategic foresight, but deterministic smart rules enforce the safety boundaries, eliminating hallucinations.

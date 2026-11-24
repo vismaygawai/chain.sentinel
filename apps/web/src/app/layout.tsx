@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Chain Sentinel | Autonomous DeFi Security & Threat Matrix",
+  title: "CHAIN.SENTINEL | Autonomous DeFi Security & Threat Matrix",
   description: "Real-time on-chain multi-agent defense matrix for DeFi treasuries, liquidity pools, and smart contracts.",
+  authors: [{ name: "Vismay" }],
+  creator: "Vismay",
   icons: {
     icon: "/favicon.ico",
   },

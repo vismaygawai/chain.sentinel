@@ -1,37 +1,20 @@
-/**
- * Chain Sentinel Monorepo Build Runner
- * Compiles and builds agents-core, apps/api, and apps/web
- */
+import { execSync } from 'node:child_process';
 
-import { execSync } from 'child_process';
-import path from 'path';
-
-console.log('========================================================');
-console.log('🛡️  CHAIN SENTINEL - PRODUCTION MONOREPO BUILD RUNNER');
-console.log('========================================================\n');
-
-const ROOT_DIR = process.cwd();
-
-function runCommand(command: string, stepName: string) {
-  console.log(`[Step] ${stepName}...`);
-  try {
-    execSync(command, { stdio: 'inherit', cwd: ROOT_DIR });
-    console.log(`✓ ${stepName} completed successfully.\n`);
-  } catch (error) {
-    console.error(`❌ ${stepName} failed:`, error);
-    process.exit(1);
-  }
+interface BuildStep {
+  name: string;
+  command: string;
 }
 
-// 1. Typecheck & Test Agents Core
-runCommand('pnpm --filter agents-core test', 'Testing Agents Core ADK Engine');
+const steps: BuildStep[] = [
+  { name: 'Typecheck agents-core', command: 'pnpm --filter agents-core exec tsc --noEmit' },
+  { name: 'Typecheck api', command: 'pnpm --filter api exec tsc --noEmit' },
+  { name: 'Typecheck web', command: 'pnpm --filter web exec tsc --noEmit' },
+  { name: 'Build web dashboard', command: 'pnpm --filter web build' },
+];
 
-// 2. Typecheck Fastify API Service
-runCommand('pnpm --filter api exec tsc --noEmit', 'Validating Fastify API TypeScript');
+for (const step of steps) {
+  console.log(`\n==> [build-all] ${step.name}...`);
+  execSync(step.command, { stdio: 'inherit' });
+}
 
-// 3. Build Next.js 16 Web Operations Dashboard
-runCommand('pnpm --filter web build', 'Building Next.js 16 Web Dashboard');
-
-console.log('========================================================');
-console.log('🎉 ALL MONOREPO PACKAGES COMPILED & READY FOR PRODUCTION');
-console.log('========================================================');
+console.log('\n==> [build-all] Monorepo build completed successfully.');

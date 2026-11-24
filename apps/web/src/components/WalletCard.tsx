@@ -1,15 +1,11 @@
 import type { WalletInfo } from '@/types/index';
+import { formatAddress } from '@/lib/api';
 
 interface WalletCardProps {
   wallet: WalletInfo;
 }
 
-function truncateAddress(address: string): string {
-  if (!address) return '';
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-function formatTime(timestamp: number | null): string {
+function formatRelativeTime(timestamp: number | null): string {
   if (!timestamp) return 'No alerts yet';
   const diffMs = Date.now() - timestamp;
   const diffMin = Math.floor(diffMs / 60000);
@@ -44,7 +40,7 @@ export default function WalletCard({ wallet }: WalletCardProps) {
         <div>
           <span className="font-mono text-xs text-gray-500 block uppercase">WhaleWatch Monitored</span>
           <span className="font-mono text-sm font-bold text-electric">
-            {truncateAddress(wallet.address)}
+            {formatAddress(wallet.address)}
           </span>
         </div>
         <div className={`px-2.5 py-1 text-xs font-mono font-black uppercase border-2 border-black ${intentConfig.className}`}>
@@ -59,7 +55,7 @@ export default function WalletCard({ wallet }: WalletCardProps) {
         </div>
         <div className="flex justify-between border-b border-gray-200 pb-1 pt-1">
           <span className="text-gray-500">Last Activity:</span>
-          <span className="font-bold">{formatTime(lastAlertTime)}</span>
+          <span className="font-bold">{formatRelativeTime(lastAlertTime)}</span>
         </div>
         <div className="flex justify-between pt-1">
           <span className="text-gray-500">Mempool Stream:</span>

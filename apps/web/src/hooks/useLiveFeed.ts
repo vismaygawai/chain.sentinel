@@ -3,7 +3,28 @@
 import { useEffect, useState, useRef } from 'react'
 import type { CompoundAlert } from '@/types'
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws/feed'
+function resolveWsUrl(): string {
+    if (process.env.NEXT_PUBLIC_WS_URL) {
+        return process.env.NEXT_PUBLIC_WS_URL
+    }
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    return apiBase.replace(/^http(s?):\/\//, 'ws$1://').replace(/\/$/, '') + '/ws/feed'
+}
+
+const WS_URL = resolveWsUrl()
+const VALID_URGENCIES = new Set(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'])
+
+function isValidCompoundAlert(val: unknown): val is CompoundAlert {
+    if (!val || typeof val !== 'object') return false
+    const record = val as Record<string, unknown>
+    return (
+        typeof record.walletAddress === 'string' &&
+        record.walletAddress.length > 0 &&
+        typeof record.isCorrelated === 'boolean' &&
+        typeof record.combinedUrgency === 'string' &&
+        VALID_URGENCIES.has(record.combinedUrgency)
+    )
+}
 
 export function useLiveFeed() {
     const [alerts, setAlerts] = useState<CompoundAlert[]>([])
@@ -21,44 +42,41 @@ export function useLiveFeed() {
             ws.current = new WebSocket(WS_URL)
 
             ws.current.onopen = () => {
-                console.log('[useLiveFeed] Connected to WebSocket')
                 setIsConnected(true)
             }
 
             ws.current.onmessage = (event) => {
                 try {
-                    const data = JSON.parse(event.data)
-                    // Broadcast format: { type: "WHALE"|"LIQUIDATION"|"COMPOUND", alert: {...}, timestamp: ISO }
-                    if (data.alert) {
+                    const data = JSON.parse(event.data) as { alert?: unknown }
+                    if (isValidCompoundAlert(data.alert)) {
+                        const incoming = data.alert
                         setAlerts((prev) => {
-                            const incoming = data.alert as CompoundAlert;
-                            const incomingTx = incoming.wwAlert?.txHash;
-                            // If incoming is a correlated compound alert, upgrade any existing alert for this address or txHash
+                            const incomingTx = incoming.wwAlert?.txHash
                             if (incoming.isCorrelated) {
-                                const filtered = prev.filter(a =>
-                                    !(incomingTx && a.wwAlert?.txHash === incomingTx) &&
-                                    !(a.walletAddress?.toLowerCase() === incoming.walletAddress?.toLowerCase() && !a.isCorrelated)
-                                );
-                                return [incoming, ...filtered].slice(0, 50);
+                                const filtered = prev.filter(
+                                    (a) =>
+                                        !(incomingTx && a.wwAlert?.txHash === incomingTx) &&
+                                        !(a.walletAddress?.toLowerCase() === incoming.walletAddress.toLowerCase() && !a.isCorrelated)
+                                )
+                                return [incoming, ...filtered].slice(0, 50)
                             }
 
-                            // If incoming has a txHash, check if that exact transaction was already alerted
                             if (incomingTx) {
-                                const exists = prev.some(a => a.wwAlert?.txHash === incomingTx);
-                                if (exists) return prev;
+                                const exists = prev.some((a) => a.wwAlert?.txHash === incomingTx)
+                                if (exists) return prev
                             }
 
-                            // If incoming is a pure liquidation snapshot, deduplicate by address and timestamp
-                            const incomingLsTs = incoming.lsAlert?.timestamp;
+                            const incomingLsTs = incoming.lsAlert?.timestamp
                             if (incoming.lsAlert && !incoming.wwAlert && incomingLsTs) {
-                                const exists = prev.some(a =>
-                                    a.walletAddress?.toLowerCase() === incoming.walletAddress?.toLowerCase() &&
-                                    a.lsAlert?.timestamp === incomingLsTs
-                                );
-                                if (exists) return prev;
+                                const exists = prev.some(
+                                    (a) =>
+                                        a.walletAddress?.toLowerCase() === incoming.walletAddress.toLowerCase() &&
+                                        a.lsAlert?.timestamp === incomingLsTs
+                                )
+                                if (exists) return prev
                             }
 
-                            return [incoming, ...prev].slice(0, 50);
+                            return [incoming, ...prev].slice(0, 50)
                         })
                     }
                 } catch (err) {
@@ -67,17 +85,13 @@ export function useLiveFeed() {
             }
 
             ws.current.onclose = () => {
-                console.log('[useLiveFeed] Disconnected')
                 setIsConnected(false)
-                // Attempt reconnect after 5s
                 reconnectTimeout.current = setTimeout(connect, 5000)
             }
 
             ws.current.onerror = () => {
-                // Only log error if we haven't successfully connected yet 
-                // or if it's a persistent failure.
                 if (ws.current?.readyState !== WebSocket.OPEN) {
-                    console.warn('[useLiveFeed] WebSocket connection failed. Retrying...');
+                    console.warn('[useLiveFeed] WebSocket connection failed. Retrying...')
                 }
                 ws.current?.close()
             }

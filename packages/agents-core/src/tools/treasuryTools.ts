@@ -1,52 +1,51 @@
-import type { TreasurySnapshot, RiskResult, ProtectionPlan } from "../types.ts";
+import type { TreasurySnapshot, RiskResult } from '../types.ts';
+import { assertSafeExternalUrl } from '../lib/security.ts';
 
 /**
- * ADK Tools for Treasury Analysis
- * These are utility functions that agents can use or reference
+ * Utility helpers for treasury analysis and LLM fallback parsing.
  */
-
 export const treasuryTools = {
   /**
-   * Analyze treasury concentration risk
+   * Analyze treasury concentration risk.
    */
   analyzeConcentration: (snapshot: TreasurySnapshot): { concentration: string; risk: number } => {
     const positionCount = snapshot.positions.length;
     if (positionCount === 1) {
-      return { concentration: "100% single asset", risk: 40 };
+      return { concentration: '100% single asset', risk: 40 };
     }
     if (positionCount === 2) {
-      return { concentration: "2 assets", risk: 20 };
+      return { concentration: '2 assets', risk: 20 };
     }
     return { concentration: `${positionCount} assets diversified`, risk: 0 };
   },
 
   /**
-   * Analyze treasury size exposure
+   * Analyze treasury size exposure.
    */
   analyzeSizeExposure: (totalUsdValue: number): { category: string; risk: number } => {
     if (totalUsdValue > 10_000_000) {
-      return { category: "Enterprise-scale", risk: 30 };
+      return { category: 'Enterprise-scale', risk: 30 };
     }
     if (totalUsdValue > 1_000_000) {
-      return { category: "Large treasury", risk: 25 };
+      return { category: 'Large treasury', risk: 25 };
     }
     if (totalUsdValue > 100_000) {
-      return { category: "Medium treasury", risk: 15 };
+      return { category: 'Medium treasury', risk: 15 };
     }
-    return { category: "Small treasury", risk: 5 };
+    return { category: 'Small treasury', risk: 5 };
   },
 
   /**
-   * Generate base risk assessment
+   * Generate base risk assessment.
    */
   generateBaseRisk: (snapshot: TreasurySnapshot): RiskResult => {
     const concentration = treasuryTools.analyzeConcentration(snapshot);
     const sizeExposure = treasuryTools.analyzeSizeExposure(snapshot.totalUsdValue);
 
     const riskScore = Math.min(100, Math.max(5, concentration.risk + sizeExposure.risk + 10));
-    let level: RiskResult["level"] = "LOW";
-    if (riskScore >= 70) level = "HIGH";
-    else if (riskScore >= 40) level = "MEDIUM";
+    let level: RiskResult['level'] = 'LOW';
+    if (riskScore >= 70) level = 'HIGH';
+    else if (riskScore >= 40) level = 'MEDIUM';
 
     const issues: string[] = [];
     if (concentration.risk > 0) issues.push(`Treasury concentration risk: ${concentration.concentration}`);
@@ -55,34 +54,38 @@ export const treasuryTools = {
     return {
       level,
       score: riskScore,
-      issues
+      issues,
     };
-  }
+  },
 };
 
 /**
- * Qwen LLM integration for ADK agents with retry logic
+ * Qwen LLM integration for ADK agents with retry logic and URL validation.
  */
 export async function callQwenLLM(prompt: string, retries: number = 1): Promise<string> {
   const baseUrl = process.env.QWEN_API_URL;
   if (!baseUrl) {
-    throw new Error("QWEN_API_URL not configured");
+    throw new Error('QWEN_API_URL not configured');
   }
+
+  const parsedUrl = assertSafeExternalUrl(baseUrl);
+  const endpoint = parsedUrl.pathname.endsWith('/api/generate')
+    ? parsedUrl.toString()
+    : new URL('/api/generate', parsedUrl.origin).toString();
 
   const timeout = 8000;
 
   for (let attempt = 0; attempt < retries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    timeoutId.unref?.();
+
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-      const endpoint = baseUrl.endsWith("/api/generate") ? baseUrl : `${baseUrl.replace(/\/$/, "")}/api/generate`;
-
       const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: "qwen2.5:0.5b",
+          model: 'qwen2.5:0.5b',
           prompt,
           stream: false,
           options: {
@@ -90,28 +93,29 @@ export async function callQwenLLM(prompt: string, retries: number = 1): Promise<
             top_p: 0.8,
           },
         }),
-        signal: controller.signal
+        signal: controller.signal,
       });
-
-      clearTimeout(timeoutId);
 
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
 
-      const data = await res.json();
+      const data = (await res.json()) as {
+        response?: unknown;
+        message?: { content?: unknown };
+      };
 
-      if (typeof data.response === "string" && data.response.trim().length > 0) {
+      if (typeof data.response === 'string' && data.response.trim().length > 0) {
         return data.response;
       }
-      if (data.message?.content && typeof data.message.content === "string" && data.message.content.trim().length > 0) {
+      if (data.message?.content && typeof data.message.content === 'string' && data.message.content.trim().length > 0) {
         return data.message.content;
       }
-      if (typeof data === "string" && data.trim().length > 0) {
-        return data;
+      if (typeof data === 'string' && (data as string).trim().length > 0) {
+        return data as string;
       }
 
-      throw new Error("Empty response from LLM");
+      throw new Error('Empty response from LLM');
     } catch (error) {
       const isLastAttempt = attempt === retries - 1;
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -123,38 +127,57 @@ export async function callQwenLLM(prompt: string, retries: number = 1): Promise<
 
       // Exponential backoff before retry
       await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
-  throw new Error("LLM call exhausted all retries");
+  throw new Error('LLM call exhausted all retries');
 }
 
 /**
- * Safe JSON extraction from LLM response
- * Handles markdown, extra text, and various formats
+ * String-aware JSON object extractor from LLM responses.
+ * Ignores braces inside quoted JSON string literals.
  */
-export function extractJSON<T = any>(text: string): T {
-  if (!text || typeof text !== "string") {
-    throw new Error("Invalid input: expected string");
+export function extractJSON<T = Record<string, unknown>>(text: string): T {
+  if (!text || typeof text !== 'string') {
+    throw new Error('Invalid input: expected string');
   }
 
   const cleaned = text
-    .replace(/```json\n?/g, "")
-    .replace(/```\n?/g, "")
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
     .trim();
 
-  // Try to find JSON object by brackets
-  let jsonStr = "";
+  let jsonStr = '';
   let depth = 0;
   let startIdx = -1;
+  let inString = false;
+  let escaped = false;
 
   for (let i = 0; i < cleaned.length; i++) {
     const char = cleaned[i];
 
-    if (char === "{") {
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === '{') {
       if (depth === 0) startIdx = i;
       depth++;
-    } else if (char === "}") {
+    } else if (char === '}') {
       depth--;
       if (depth === 0 && startIdx !== -1) {
         jsonStr = cleaned.slice(startIdx, i + 1);

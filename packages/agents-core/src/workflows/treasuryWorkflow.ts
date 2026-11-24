@@ -1,4 +1,3 @@
-import { ethers } from "ethers";
 import { watchTreasury } from "../agents/watcherAgent.ts";
 import { analyzeRisk, initRiskAgent } from "../agents/riskAgent.ts";
 import { generateProtectionPlan, initPlannerAgent } from "../agents/plannerAgent.ts";

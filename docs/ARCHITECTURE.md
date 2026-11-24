@@ -6,7 +6,7 @@
 
 While conventional DeFi security tools act **reactively** (generating alert notifications hours or days after an exploit or liquidation has occurred), Chain Sentinel is engineered **pre-emptively**: it continuously monitors lending health factors, intercepts mempool whale transactions, correlates compound threats across protocols, and autonomously arbitrates rebalancing actions before insolvency manifests.
 
-Chain Sentinel was architected by **WWHS?** for **ELECTROTHON 8.0** ([Devfolio Submission](https://devfolio.co/projects/chain-sentinel-f7cf)).
+CHAIN.SENTINEL is architected and maintained by **Vismay**.
 
 ---
 

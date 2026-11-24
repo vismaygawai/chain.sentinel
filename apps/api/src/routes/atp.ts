@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import crypto from 'crypto';
-import { isAddress } from 'ethers';
+import { getAddress, isAddress } from 'ethers';
+import { constantTimeEqual, sanitizeText } from 'agents-core';
 import { atpService } from '../services/atpService.ts';
 import { ENV } from '../config/env.ts';
 import type { AtpRegisterRequestBody } from '../types/api.ts';
@@ -16,10 +16,23 @@ export async function atpRoutes(server: FastifyInstance) {
     return atpService.getAgentMetadata();
   });
 
-  // Register New Agent Tokenization Instance (Protected with constant-time API key verification)
+  // Register New Agent Tokenization Instance (Protected with constant-time SHA-256 API key verification)
   server.post<{ Body: AtpRegisterRequestBody }>(
     '/api/atp/register',
     {
+      schema: {
+        body: {
+          type: 'object',
+          required: ['treasuryAddress'],
+          additionalProperties: false,
+          properties: {
+            agentName: { type: 'string', minLength: 1, maxLength: 100 },
+            treasuryAddress: { type: 'string', pattern: '^0x[a-fA-F0-9]{40}$' },
+            initialTokenSupply: { type: 'number', minimum: 0 },
+            policyProfile: { type: 'string', enum: ['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE'] },
+          },
+        },
+      },
       config: {
         rateLimit: {
           max: 10,
@@ -35,16 +48,11 @@ export async function atpRoutes(server: FastifyInstance) {
       }
 
       const apiKeyHeader = request.headers['x-api-key'];
-      if (typeof apiKeyHeader !== 'string') {
+      if (typeof apiKeyHeader !== 'string' || apiKeyHeader.length === 0) {
         return reply.status(401).send({ error: 'Unauthorized: Missing x-api-key header' });
       }
 
-      const keyBuffer = Buffer.from(apiKeyHeader);
-      const expectedBuffer = Buffer.from(ENV.ATP_API_KEY);
-      if (
-        keyBuffer.length !== expectedBuffer.length ||
-        !crypto.timingSafeEqual(keyBuffer, expectedBuffer)
-      ) {
+      if (!constantTimeEqual(apiKeyHeader, ENV.ATP_API_KEY)) {
         return reply.status(401).send({ error: 'Unauthorized: Invalid x-api-key header' });
       }
 
@@ -54,7 +62,13 @@ export async function atpRoutes(server: FastifyInstance) {
           error: 'A valid EVM treasury address is required for ATP registration',
         });
       }
-      const registered = await atpService.registerAgent(body);
+
+      const registered = await atpService.registerAgent({
+        agentName: sanitizeText(body.agentName, 100) || 'Chain Sentinel Agent',
+        treasuryAddress: getAddress(body.treasuryAddress.toLowerCase()),
+        initialTokenSupply: body.initialTokenSupply,
+        policyProfile: body.policyProfile,
+      });
       return reply.status(201).send(registered);
     }
   );

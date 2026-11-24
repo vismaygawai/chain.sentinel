@@ -48,8 +48,23 @@ const COINGECKO_ID_MAP: Record<string, string> = {
   SHIB: 'shiba-inu',
 };
 
+async function fetchJsonWithTimeout<T>(url: string, timeoutMs: number): Promise<T | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  timeoutId.unref?.();
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 /**
- * Fetch real-time token USD price with caching and multi-source fallback
+ * Fetch real-time token USD price with caching and multi-source fallback.
  */
 export async function getTokenPriceUSD(symbol: string): Promise<number> {
   const sym = symbol.toUpperCase();
@@ -63,51 +78,27 @@ export async function getTokenPriceUSD(symbol: string): Promise<number> {
     return FALLBACK_PRICES[sym] ?? (KNOWN_STABLECOINS.has(sym) ? 1.0 : 0);
   }
 
-  try {
-    // Attempt 1: CoinGecko Simple Price API
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-    
-    const res = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`,
-      { signal: controller.signal }
-    );
-    clearTimeout(timeoutId);
-
-    if (res.ok) {
-      const data = (await res.json()) as Record<string, { usd: number }>;
-      if (data[coinId]?.usd) {
-        const price = data[coinId].usd;
-        priceCache.set(sym, { priceUSD: price, timestamp: Date.now() });
-        return price;
-      }
-    }
-  } catch {
-    // API failed or timed out, attempt secondary fallback
+  // Attempt 1: CoinGecko Simple Price API
+  const cgData = await fetchJsonWithTimeout<Record<string, { usd: number }>>(
+    `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(coinId)}&vs_currencies=usd`,
+    3000
+  );
+  if (cgData?.[coinId]?.usd) {
+    const price = cgData[coinId].usd;
+    priceCache.set(sym, { priceUSD: price, timestamp: Date.now() });
+    return price;
   }
 
-  try {
-    // Attempt 2: DeFiLlama Coin Price API
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-    const res = await fetch(
-      `https://coins.llama.fi/prices/current/coingecko:${coinId}`,
-      { signal: controller.signal }
-    );
-    clearTimeout(timeoutId);
-
-    if (res.ok) {
-      const data = (await res.json()) as { coins?: Record<string, { price: number }> };
-      const key = `coingecko:${coinId}`;
-      if (data.coins?.[key]?.price) {
-        const price = data.coins[key].price;
-        priceCache.set(sym, { priceUSD: price, timestamp: Date.now() });
-        return price;
-      }
-    }
-  } catch {
-    // Fallback to static reference table
+  // Attempt 2: DeFiLlama Coin Price API
+  const llamaData = await fetchJsonWithTimeout<{ coins?: Record<string, { price: number }> }>(
+    `https://coins.llama.fi/prices/current/coingecko:${encodeURIComponent(coinId)}`,
+    3000
+  );
+  const key = `coingecko:${coinId}`;
+  if (llamaData?.coins?.[key]?.price) {
+    const price = llamaData.coins[key].price;
+    priceCache.set(sym, { priceUSD: price, timestamp: Date.now() });
+    return price;
   }
 
   const fallback = FALLBACK_PRICES[sym] ?? (KNOWN_STABLECOINS.has(sym) ? 1.0 : 0);
@@ -116,7 +107,7 @@ export async function getTokenPriceUSD(symbol: string): Promise<number> {
 }
 
 /**
- * Batch price lookup with single aggregated CoinGecko request
+ * Batch price lookup with single aggregated CoinGecko request.
  */
 export async function getBatchPrices(symbols: string[]): Promise<Record<string, number>> {
   const result: Record<string, number> = {};
@@ -142,30 +133,21 @@ export async function getBatchPrices(symbols: string[]): Promise<Record<string, 
   }
 
   if (neededCoinIds.size > 0) {
-    try {
-      const idsParam = Array.from(neededCoinIds).join(',');
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd`,
-        { signal: controller.signal }
-      );
-      clearTimeout(timeoutId);
-
-      if (res.ok) {
-        const data = (await res.json()) as Record<string, { usd: number }>;
-        for (const [coinId, syms] of idToSymbols.entries()) {
-          const price = data[coinId]?.usd;
-          if (price && price > 0) {
-            for (const sym of syms) {
-              priceCache.set(sym, { priceUSD: price, timestamp: Date.now() });
-              result[sym] = price;
-            }
+    const idsParam = Array.from(neededCoinIds).map((id) => encodeURIComponent(id)).join(',');
+    const cgData = await fetchJsonWithTimeout<Record<string, { usd: number }>>(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd`,
+      4000
+    );
+    if (cgData) {
+      for (const [coinId, syms] of idToSymbols.entries()) {
+        const price = cgData[coinId]?.usd;
+        if (price && price > 0) {
+          for (const sym of syms) {
+            priceCache.set(sym, { priceUSD: price, timestamp: Date.now() });
+            result[sym] = price;
           }
         }
       }
-    } catch {
-      // CoinGecko batch failed, fallbacks will be used below
     }
   }
 

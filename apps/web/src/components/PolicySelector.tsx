@@ -70,16 +70,18 @@ export default function PolicySelector({
             const spec = POLICY_SPECS[mode];
             const isSelected = selected === mode;
             return (
-              <div
+              <button
                 key={mode}
+                type="button"
+                aria-pressed={isSelected}
                 onClick={() => handleSelect(mode)}
-                className={`cursor-pointer border-2 border-black p-4 transition-all duration-150 flex flex-col justify-between ${
+                className={`text-left cursor-pointer border-2 border-black p-4 transition-all duration-150 flex flex-col justify-between ${
                   isSelected
                     ? "bg-black text-white shadow-hard-blue translate-x-[-2px] translate-y-[-2px]"
                     : "bg-white text-black hover:bg-gray-50 shadow-hard-sm"
                 }`}
               >
-                <div>
+                <div className="w-full">
                   <div className="flex justify-between items-center mb-3">
                     <span className="font-display font-black text-sm uppercase tracking-wider">
                       {spec.label}
@@ -105,10 +107,10 @@ export default function PolicySelector({
                   </div>
                 </div>
 
-                <p className={`text-[11px] leading-tight pt-2 border-t ${isSelected ? "border-gray-800 text-gray-300" : "border-gray-100 text-gray-600"}`}>
+                <p className={`text-[11px] leading-tight pt-2 border-t w-full ${isSelected ? "border-gray-800 text-gray-300" : "border-gray-100 text-gray-600"}`}>
                   {spec.desc}
                 </p>
-              </div>
+              </button>
             );
           })}
         </div>

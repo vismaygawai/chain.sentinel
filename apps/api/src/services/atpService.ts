@@ -1,4 +1,5 @@
 import { ENV } from '../config/env.ts';
+import { sanitizeText } from 'agents-core';
 import type { AtpRegisterRequestBody } from '../types/api.ts';
 
 export interface AtpAgentMetadata {
@@ -13,6 +14,8 @@ export interface AtpAgentMetadata {
   registeredAt: string;
   status: 'ACTIVE' | 'REGISTERED' | 'STANDBY';
 }
+
+const VALID_PROFILES = new Set(['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE']);
 
 export class AtpService {
   private registeredMetadata: AtpAgentMetadata = {
@@ -35,14 +38,18 @@ export class AtpService {
   };
 
   public async registerAgent(payload: AtpRegisterRequestBody): Promise<AtpAgentMetadata> {
+    const safeName = sanitizeText(payload.agentName, 100) || 'Chain Sentinel Agent';
+    const rawPolicy = String(payload.policyProfile || 'BALANCED').toUpperCase();
+    const policyProfile = VALID_PROFILES.has(rawPolicy) ? rawPolicy : 'BALANCED';
+
     this.registeredMetadata = {
       agentId: `cs-${Date.now().toString(36)}`,
-      name: payload.agentName || 'Chain Sentinel Agent',
+      name: safeName,
       symbol: 'cSNT',
       description: 'Autonomous AI Security Agent deployed via ATP platform',
       version: '1.0.0',
       treasuryAddress: payload.treasuryAddress,
-      policyProfile: payload.policyProfile || 'BALANCED',
+      policyProfile,
       capabilities: [
         'aave-v3-liquidation-protection',
         'mempool-whale-tracking',

@@ -2,15 +2,32 @@ import type { TreasuryScanResult, WalletInfo } from "@/types/index";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
+async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 10_000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function runRiskScan(address: string, policy?: string): Promise<TreasuryScanResult> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/api/risk-scan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address, policy }),
-    });
-  } catch {
+    res = await fetchWithTimeout(
+      `${API_BASE}/api/risk-scan`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, policy }),
+      },
+      30_000
+    );
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("Treasury risk scan timed out. Please retry.");
+    }
     throw new Error(`Sentinel API unreachable at ${API_BASE}. Ensure backend service is running.`);
   }
 
@@ -28,7 +45,15 @@ export async function runRiskScan(address: string, policy?: string): Promise<Tre
     snapshot: data.snapshot,
     risk: {
       ...data.risk,
-      tier: data.risk?.tier || (data.risk?.score >= 85 ? "CRITICAL" : data.risk?.score >= 70 ? "DANGER" : data.risk?.score > 40 ? "WARNING" : "SAFE"),
+      tier:
+        data.risk?.tier ||
+        (data.risk?.score >= 85
+          ? "CRITICAL"
+          : data.risk?.score >= 70
+          ? "DANGER"
+          : data.risk?.score > 40
+          ? "WARNING"
+          : "SAFE"),
     },
     plan: data.plan || { actions: [] },
     decision: data.governance || data.decision || {
@@ -40,34 +65,38 @@ export async function runRiskScan(address: string, policy?: string): Promise<Tre
 }
 
 export async function registerWhaleWatcher(address: string) {
-  try {
-    const res = await fetch(`${API_BASE}/whale`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address }),
-    });
-    if (res.ok) return await res.json();
-  } catch {}
-  return { status: "registered", address, message: "Registered for WhaleWatch (Simulated)" };
+  const res = await fetchWithTimeout(`${API_BASE}/whale`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ address }),
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => null);
+    throw new Error(errorBody?.error || `WhaleWatch registration failed with HTTP ${res.status}`);
+  }
+  return await res.json();
 }
 
 export async function registerLiquidShield(address: string) {
-  try {
-    const res = await fetch(`${API_BASE}/position`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address }),
-    });
-    if (res.ok) return await res.json();
-  } catch {}
-  return { status: "registered", address, message: "Registered for LiquidShield (Simulated)" };
+  const res = await fetchWithTimeout(`${API_BASE}/position`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ address }),
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => null);
+    throw new Error(errorBody?.error || `LiquidShield registration failed with HTTP ${res.status}`);
+  }
+  return await res.json();
 }
 
 export async function getHealthSnapshots(address: string) {
   try {
-    const res = await fetch(`${API_BASE}/health?address=${address}`);
+    const res = await fetchWithTimeout(`${API_BASE}/health?address=${encodeURIComponent(address)}`);
     if (res.ok) return await res.json();
-  } catch {}
+  } catch {
+    // fallback to empty snapshot list on transient read failure
+  }
   return {
     address,
     snapshots: [],
@@ -76,29 +105,37 @@ export async function getHealthSnapshots(address: string) {
 
 export async function getWhaleAlerts(address?: string) {
   try {
-    const url = address ? `${API_BASE}/alerts?address=${address}` : `${API_BASE}/alerts`;
-    const res = await fetch(url);
+    const url = address
+      ? `${API_BASE}/alerts?address=${encodeURIComponent(address)}`
+      : `${API_BASE}/alerts`;
+    const res = await fetchWithTimeout(url);
     if (res.ok) return await res.json();
-  } catch {}
+  } catch {
+    // fallback to empty alerts list
+  }
   return { alerts: [] };
 }
 
 export async function getMonitoredWorkflows(): Promise<WalletInfo[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/monitored`);
+    const res = await fetchWithTimeout(`${API_BASE}/api/monitored`);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) return data;
     }
-  } catch {}
+  } catch {
+    // fallback to empty list
+  }
   return [];
 }
 
 export async function getAtpMetadata() {
   try {
-    const res = await fetch(`${API_BASE}/api/atp/metadata`);
+    const res = await fetchWithTimeout(`${API_BASE}/api/atp/metadata`);
     if (res.ok) return await res.json();
-  } catch {}
+  } catch {
+    // fallback metadata
+  }
   return {
     agentId: "chain-sentinel-v1",
     name: "Chain Sentinel Autonomous Security Agent",
@@ -122,7 +159,7 @@ export function formatCurrency(value: number): string {
 }
 
 export function formatCompactUSD(value: number | string): string {
-  const num = typeof value === 'string' ? parseFloat(value) : value;
+  const num = typeof value === "string" ? parseFloat(value) : value;
   if (!isFinite(num) || isNaN(num)) return "$0.00";
   const abs = Math.abs(num);
   if (abs >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
@@ -132,7 +169,7 @@ export function formatCompactUSD(value: number | string): string {
 }
 
 export function formatCompactNumber(value: number | string): string {
-  const num = typeof value === 'string' ? parseFloat(value) : value;
+  const num = typeof value === "string" ? parseFloat(value) : value;
   if (!isFinite(num) || isNaN(num)) return "0";
   const abs = Math.abs(num);
   if (abs >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
@@ -145,6 +182,7 @@ export function formatCompactNumber(value: number | string): string {
 
 export function formatTime(timestamp: string | number): string {
   const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "--:--:--";
   return date.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",

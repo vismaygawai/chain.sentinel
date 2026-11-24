@@ -1,26 +1,15 @@
 'use client';
 
 import type { CompoundAlert } from '@/types';
+import { formatAddress, formatCompactUSD } from '@/lib/api';
 
 interface AlertPanelProps {
   alerts: CompoundAlert[];
 }
 
-function truncateAddress(address: string): string {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
 function truncateTxHash(hash: string): string {
+  if (!hash) return '';
   return `${hash.slice(0, 10)}...${hash.slice(-6)}`;
-}
-
-function formatUSD(value: string | number): string {
-  const num = typeof value === 'number' ? value : parseFloat(value);
-  if (!isFinite(num) || isNaN(num)) return '$0.00';
-  if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(2)}B`;
-  if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`;
-  if (num >= 1_000) return `$${(num / 1_000).toFixed(1)}K`;
-  return `$${num.toFixed(2)}`;
 }
 
 function formatTimestamp(timestamp: number): string {
@@ -63,7 +52,7 @@ export default function AlertPanel({ alerts }: AlertPanelProps) {
           !
         </div>
         <p className="font-display text-xl font-black uppercase tracking-tight">NO ACTIVE THREAT SIGNALS</p>
-        <p className="font-mono text-xs text-gray-500 mt-1">Continuous mempool & lending surveillance active.</p>
+        <p className="font-mono text-xs text-gray-500 mt-1">Continuous mempool &amp; lending surveillance active.</p>
       </div>
     );
   }
@@ -98,7 +87,7 @@ export default function AlertPanel({ alerts }: AlertPanelProps) {
                     </span>
                   )}
                   <span className="font-mono text-xs font-bold text-black">
-                    {truncateAddress(alert.walletAddress)}
+                    {formatAddress(alert.walletAddress)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -117,7 +106,7 @@ export default function AlertPanel({ alerts }: AlertPanelProps) {
                   <div className="border border-black p-2.5 bg-white">
                     <span className="text-[10px] uppercase font-bold text-gray-500 block">Whale Movement</span>
                     <div className="flex justify-between items-center mt-0.5">
-                      <span className="font-bold text-black">{formatUSD(alert.wwAlert.amount)} in {alert.wwAlert.token}</span>
+                      <span className="font-bold text-black">{formatCompactUSD(alert.wwAlert.amount)} in {alert.wwAlert.token}</span>
                       <span className="text-gray-500 text-[10px]">{truncateTxHash(alert.wwAlert.txHash)}</span>
                     </div>
                   </div>
@@ -128,7 +117,7 @@ export default function AlertPanel({ alerts }: AlertPanelProps) {
                     <span className="text-[10px] uppercase font-bold text-gray-500 block">Aave Position Shift</span>
                     <div className="flex justify-between items-center mt-0.5">
                       <span className="font-bold text-red-600">Health Factor: {parseFloat(alert.lsAlert.healthFactor).toFixed(2)}</span>
-                      <span className="text-gray-500 text-[10px]">Collateral: {formatUSD(alert.lsAlert.collateral)}</span>
+                      <span className="text-gray-500 text-[10px]">Collateral: {formatCompactUSD(alert.lsAlert.collateral)}</span>
                     </div>
                   </div>
                 )}

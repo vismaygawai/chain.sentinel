@@ -1,5 +1,7 @@
 import { ethers } from 'ethers';
 import type { PositionSnapshot } from '../types.ts';
+import { withResilientProvider } from './rpcTools.ts';
+import { redactSecrets } from '../lib/security.ts';
 
 // Standard Aave V3 Pool Interface for reading position data
 const AAVE_V3_POOL_ABI = [
@@ -21,69 +23,82 @@ export interface UserAccountData {
   isError?: boolean;
 }
 
+async function queryAavePool(
+  normalizedAddress: string,
+  provider: ethers.Provider
+): Promise<UserAccountData> {
+  const contract = new ethers.Contract(AAVE_V3_POOL_ADDRESS, AAVE_V3_POOL_ABI, provider);
+
+  const [
+    totalCollateralBase,
+    totalDebtBase,
+    availableBorrowsBase,
+    currentLiquidationThreshold,
+    ltv,
+    healthFactor,
+  ] = await contract.getUserAccountData(normalizedAddress);
+
+  // Aave base currency units are in 8 decimals (USD value with 8 decimals)
+  const collateralUSD = Number(totalCollateralBase) / 1e8;
+  const debtUSD = Number(totalDebtBase) / 1e8;
+  const availableUSD = Number(availableBorrowsBase) / 1e8;
+  const rawThreshold = Number(currentLiquidationThreshold) / 10000; // fraction, e.g. 0.825
+  const ltvPct = Number(ltv) / 10000;
+  const hf = Number(ethers.formatUnits(healthFactor, 18));
+
+  let finalHF = hf;
+  const finalThreshold = rawThreshold > 0 ? rawThreshold * 100 : 82.5;
+  const finalLtv = ltvPct > 0 ? ltvPct * 100 : 75.0;
+
+  if (debtUSD === 0 || finalHF > 100 || !isFinite(finalHF)) {
+    // When a wallet has $0 debt, health factor is infinite / not applicable
+    finalHF = 0;
+  }
+
+  // Distance to liquidation: percentage fall in collateral before HF hits 1.0
+  // HF = (Collateral * LiqThreshold) / Debt
+  const distanceToLiquidation =
+    collateralUSD > 0 && debtUSD > 0
+      ? Math.max(0, (1 - debtUSD / (collateralUSD * (finalThreshold / 100))) * 100)
+      : 100;
+
+  return {
+    totalCollateralUSD: collateralUSD,
+    totalDebtUSD: debtUSD,
+    availableBorrowsUSD: availableUSD,
+    currentLiquidationThreshold: finalThreshold,
+    ltv: finalLtv,
+    healthFactor: finalHF,
+    isAtRisk: debtUSD > 0 && finalHF < 1.3,
+    distanceToLiquidationPct: distanceToLiquidation,
+  };
+}
+
 /**
- * Fetch live Aave V3 account data from on-chain contract with automatic fallback
+ * Fetch live Aave V3 account data from on-chain contract with automatic RPC failover.
  */
 export async function fetchAaveUserAccountData(
   walletAddress: string,
-  providerOrUrl: ethers.Provider | string = 'https://ethereum.publicnode.com'
+  providerOrUrl?: ethers.Provider | string
 ): Promise<UserAccountData> {
   try {
+    const normalizedAddress = ethers.getAddress(walletAddress);
+
+    if (!providerOrUrl) {
+      return await withResilientProvider('ethereum', (provider) =>
+        queryAavePool(normalizedAddress, provider)
+      );
+    }
+
     const provider =
       typeof providerOrUrl === 'string'
         ? new ethers.JsonRpcProvider(providerOrUrl)
         : providerOrUrl;
 
-    const normalizedAddress = ethers.getAddress(walletAddress);
-    const contract = new ethers.Contract(AAVE_V3_POOL_ADDRESS, AAVE_V3_POOL_ABI, provider);
-
-    const [
-      totalCollateralBase,
-      totalDebtBase,
-      availableBorrowsBase,
-      currentLiquidationThreshold,
-      ltv,
-      healthFactor,
-    ] = await contract.getUserAccountData(normalizedAddress);
-
-    // Aave base currency units are in 8 decimals (USD value with 8 decimals)
-    const collateralUSD = Number(totalCollateralBase) / 1e8;
-    const debtUSD = Number(totalDebtBase) / 1e8;
-    const availableUSD = Number(availableBorrowsBase) / 1e8;
-    const rawThreshold = Number(currentLiquidationThreshold) / 10000; // fraction, e.g. 0.825
-    const ltvPct = Number(ltv) / 10000;
-    const hf = Number(ethers.formatUnits(healthFactor, 18));
-
-    let finalCollateralUSD = collateralUSD;
-    let finalDebtUSD = debtUSD;
-    let finalHF = hf;
-    const finalThreshold = rawThreshold > 0 ? rawThreshold * 100 : 82.5;
-    const finalLtv = ltvPct > 0 ? ltvPct * 100 : 75.0;
-
-    if (finalDebtUSD === 0 || finalHF > 100 || !isFinite(finalHF)) {
-      // When a wallet has $0 debt, health factor is infinite / not applicable
-      finalHF = 0;
-    }
-
-    // Distance to liquidation: percentage fall in collateral before HF hits 1.0
-    // HF = (Collateral * LiqThreshold) / Debt
-    const distanceToLiquidation =
-      finalCollateralUSD > 0 && finalDebtUSD > 0
-        ? Math.max(0, (1 - (finalDebtUSD / (finalCollateralUSD * (finalThreshold / 100)))) * 100)
-        : 100;
-
-    return {
-      totalCollateralUSD: finalCollateralUSD,
-      totalDebtUSD: finalDebtUSD,
-      availableBorrowsUSD: availableUSD,
-      currentLiquidationThreshold: finalThreshold,
-      ltv: finalLtv,
-      healthFactor: finalHF,
-      isAtRisk: finalDebtUSD > 0 && finalHF < 1.3,
-      distanceToLiquidationPct: distanceToLiquidation,
-    };
-  } catch (err: any) {
-    console.warn(`[defiTools] Failed to fetch Aave V3 data for ${walletAddress}:`, err?.message || err);
+    return await queryAavePool(normalizedAddress, provider);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[defiTools] Failed to fetch Aave V3 data for ${walletAddress}: ${redactSecrets(msg)}`);
     return {
       totalCollateralUSD: 0,
       totalDebtUSD: 0,
@@ -99,7 +114,7 @@ export async function fetchAaveUserAccountData(
 }
 
 /**
- * Calculates debt reduction needed to reach a target health factor
+ * Calculates debt reduction needed to reach a target health factor.
  */
 export function calculateRequiredDebtRepayment(
   totalCollateralUSD: number,
@@ -107,7 +122,7 @@ export function calculateRequiredDebtRepayment(
   liquidationThresholdPct: number,
   targetHF: number = 2.0
 ): number {
-  if (currentDebtUSD <= 0) return 0;
+  if (currentDebtUSD <= 0 || targetHF <= 0) return 0;
   const thresholdFraction = liquidationThresholdPct > 1 ? liquidationThresholdPct / 100 : liquidationThresholdPct;
   const maxAllowedDebt = (totalCollateralUSD * thresholdFraction) / targetHF;
   if (currentDebtUSD <= maxAllowedDebt) return 0;
@@ -115,7 +130,7 @@ export function calculateRequiredDebtRepayment(
 }
 
 /**
- * Converts account data to standardized PositionSnapshot
+ * Converts account data to standardized PositionSnapshot.
  */
 export function toPositionSnapshot(
   walletAddress: string,

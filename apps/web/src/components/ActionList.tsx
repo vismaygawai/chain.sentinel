@@ -9,8 +9,8 @@ interface ActionListProps {
 }
 
 export default function ActionList({ plan, decision }: ActionListProps) {
-  const [executing, setExecuting] = useState(false);
-  const [executed, setExecuted] = useState(false);
+  const [executingTrigger, setExecutingTrigger] = useState<unknown>(null);
+  const [executedTrigger, setExecutedTrigger] = useState<unknown>(null);
   const timer1 = useRef<NodeJS.Timeout | null>(null);
   const timer2 = useRef<NodeJS.Timeout | null>(null);
 
@@ -18,13 +18,9 @@ export default function ActionList({ plan, decision }: ActionListProps) {
   const actions = decision?.enforcedActions || plan?.actions || [];
   const canSimulate = isLoaded && actions.length > 0 && decision?.approved !== false;
 
-  const [prevTrigger, setPrevTrigger] = useState<unknown>(null);
   const currentTrigger = decision ?? plan;
-  if (prevTrigger !== currentTrigger) {
-    setPrevTrigger(currentTrigger);
-    setExecuted(false);
-    setExecuting(false);
-  }
+  const executing = executingTrigger !== null && executingTrigger === currentTrigger;
+  const executed = executedTrigger !== null && executedTrigger === currentTrigger;
 
   useEffect(() => {
     return () => {
@@ -35,11 +31,14 @@ export default function ActionList({ plan, decision }: ActionListProps) {
 
   const handleSimulateExecution = () => {
     if (!canSimulate) return;
-    setExecuting(true);
+    if (timer1.current) clearTimeout(timer1.current);
+    if (timer2.current) clearTimeout(timer2.current);
+    const triggerSnapshot = currentTrigger;
+    setExecutingTrigger(triggerSnapshot);
     timer1.current = setTimeout(() => {
-      setExecuting(false);
-      setExecuted(true);
-      timer2.current = setTimeout(() => setExecuted(false), 5000);
+      setExecutingTrigger(null);
+      setExecutedTrigger(triggerSnapshot);
+      timer2.current = setTimeout(() => setExecutedTrigger(null), 5000);
     }, 1200);
   };
 
@@ -138,6 +137,7 @@ export default function ActionList({ plan, decision }: ActionListProps) {
           </div>
         ) : (
           <button
+            type="button"
             onClick={handleSimulateExecution}
             disabled={!canSimulate || executing}
             className="w-full bg-black text-white hover:bg-electric border-2 border-black font-display text-xs font-black uppercase tracking-wider py-3.5 shadow-hard hover:shadow-hard-md active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-40 disabled:cursor-not-allowed"

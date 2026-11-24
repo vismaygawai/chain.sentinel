@@ -1,6 +1,7 @@
 /**
- * Chain Sentinel - Demo Data Seeder
- * Populates test wallets, Aave V3 positions, and WhaleWatch targets for hackathon judging
+ * CHAIN.SENTINEL - Demo Data Seeder
+ * Populates test wallets and targets for local development and testing
+ * Author & Maintainer: Vismay
  */
 
 import { prisma } from '../packages/agents-core/src/database.ts';

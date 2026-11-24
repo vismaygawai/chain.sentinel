@@ -31,7 +31,7 @@ export default function LandingPage() {
             {/* Top pill badge */}
             <div className="flex items-center gap-3 mb-6">
               <span className="border-2 border-black bg-white px-3.5 py-1 text-xs font-mono font-bold uppercase tracking-widest shadow-hard-sm">
-                ELECTROTHON 8.0 // WWHS?
+                CHAIN.SENTINEL // VISMAY
               </span>
               <span className="hidden sm:inline-flex items-center gap-1.5 border-2 border-black bg-electric text-white px-3 py-1 text-xs font-mono font-bold uppercase shadow-hard-sm">
                 <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
@@ -58,12 +58,13 @@ export default function LandingPage() {
               </p>
             </div>
 
-            {/* Single Bold CTA Button */}
+            {/* Single Bold CTA Link */}
             <div className="pt-10 flex flex-col sm:flex-row items-start sm:items-center gap-6">
-              <Link href="/dashboard">
-                <button className="btn-neo-primary text-base sm:text-lg tracking-wider shadow-hard-lg hover:shadow-hard-md hover:-translate-x-1 hover:-translate-y-1">
-                  Launch Sentinel Dashboard →
-                </button>
+              <Link
+                href="/dashboard"
+                className="btn-neo-primary text-base sm:text-lg tracking-wider shadow-hard-lg hover:shadow-hard-md hover:-translate-x-1 hover:-translate-y-1"
+              >
+                Launch Sentinel Dashboard →
               </Link>
               
               <div className="font-mono text-xs text-gray-600 flex items-center gap-2">
@@ -347,10 +348,11 @@ export default function LandingPage() {
               Scan any EVM treasury address in seconds. Experience multi-agent defense engineered for zero-loss security.
             </p>
             <div className="pt-4">
-              <Link href="/dashboard">
-                <button className="border-2 border-black bg-white text-black font-display text-sm sm:text-base font-black uppercase tracking-widest px-10 py-5 shadow-hard hover:shadow-hard-md hover:-translate-x-1 hover:-translate-y-1 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all">
-                  Launch Sentinel Operations Dashboard →
-                </button>
+              <Link
+                href="/dashboard"
+                className="inline-block border-2 border-black bg-white text-black font-display text-sm sm:text-base font-black uppercase tracking-widest px-10 py-5 shadow-hard hover:shadow-hard-md hover:-translate-x-1 hover:-translate-y-1 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
+              >
+                Launch Sentinel Operations Dashboard →
               </Link>
             </div>
           </div>
